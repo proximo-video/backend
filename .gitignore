@@ -21,3 +21,4 @@
 *.DS_Store
 *.gcloudignore
 *.cph
+node_modules
