@@ -78,7 +78,7 @@ func (r *RoomManager) HandleChannels() {
 				}
 			}
 		case mess := <-r.broadcast:
-			log.Printf("Got broadcast message from user : %v", mess.ws)
+			log.Printf("Got broadcast message from user : %v", mess.message.UserId)
 			if room, ok := r.rooms[mess.roomId]; ok {
 				// get marshal
 				marshalled, err := json.Marshal(mess.message)
@@ -87,10 +87,10 @@ func (r *RoomManager) HandleChannels() {
 				} else {
 					// loop through all users and broadcast message
 					for uc := range room.users {
-						log.Printf("Message for conn: %v sender %v", uc.ws, mess.ws)
+						log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 						// don't send message to sender again
 						if uc.ws != mess.ws {
-							log.Printf("Sending broadcast to user %v from user %v", uc.userId, mess.ws)
+							log.Printf("Sending broadcast to user %v from user %v", uc.userId, mess.message.UserId)
 							// send to the user channel
 							uc.send <- marshalled
 						} 

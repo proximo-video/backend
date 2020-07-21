@@ -14,18 +14,21 @@ const (
 
 	// Time allowed to read the next message from the peer.
 	readWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than readWait(pongWait).
+	pingPeriod = (readWait * 9) / 10
 )
 
 // readMessage will constantly read message from the websocket connection
 func (connection *Connection) readMessage() {
-	defer func() {
-		// unregister will come here
-		log.Printf("Closing Connection: %v", connection.ws)
-		connection.ws.Close()
-	}()
 	// set maximum time limit for reading a messgage
 	connection.ws.SetReadDeadline(time.Now().Add(readWait))
 	user := User{connection: connection}
+	defer func() {
+		log.Printf("Closing Connection: %v", connection.userId)
+		RManager.unregister <- Unregister{user: user, action: SELF}
+		connection.ws.Close()
+	}()
 	for {
 		_, byteMsg, err := connection.ws.ReadMessage()
 		if err != nil {
@@ -107,20 +110,29 @@ func (c *Connection) write(mt int, payload []byte) error {
 }
 
 func (connection *Connection) writeMessage() {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		log.Printf("Closing Connection: %v", connection.ws)
+		ticker.Stop()
+		log.Printf("Closing Connection: %v", connection.userId)
 		connection.ws.Close()
 	}()
 	for {
-		message, ok := <-connection.send
-		if !ok {
-			log.Printf("Closing connection in writeMessage")
-			connection.write(websocket.CloseMessage, []byte{})
-			return
-		}
-		if err := connection.write(websocket.TextMessage, message); err != nil {
-			log.Printf("Error in writeMessage: %v", err)
-			return
+		select {
+		case message, ok := <-connection.send:
+			if !ok {
+				log.Printf("Closing connection in writeMessage")
+				connection.write(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := connection.write(websocket.TextMessage, message); err != nil {
+				log.Printf("Error in writeMessage: %v", err)
+				return
+			}
+		case <-ticker.C:
+			if err := connection.write(websocket.PingMessage, []byte{}); err != nil {
+				log.Printf("Error in writeMessage during Ping: %v", err)
+				return
+			}
 		}
 	}
 }
