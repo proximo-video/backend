@@ -64,7 +64,6 @@ func (r *RoomManager) HandleChannels() {
 			}
 		case unregis := <-r.unregister:
 			user := unregis.user
-			log.Printf("Unregister Request from user: %v", user.connection.userId)
 			room, ok := r.rooms[user.roomId]
 			if !ok {
 				log.Printf("Room %s Not found for user: %s", user.roomId, user.connection.userId)
@@ -75,7 +74,7 @@ func (r *RoomManager) HandleChannels() {
 						r.deleteUser(uc, room)
 					}
 				} else {
-					log.Printf("Delete User %s in room %s", user.connection.userId, user.roomId)
+					log.Printf("Delete Self User %s in room %s", user.connection.userId, user.roomId)
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
 					} else {

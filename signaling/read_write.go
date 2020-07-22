@@ -26,9 +26,8 @@ func (connection *Connection) readMessage() {
 	connection.ws.SetPongHandler(func(string) error { connection.ws.SetReadDeadline(time.Now().Add(readWait)); return nil })
 	user := User{connection: connection}
 	defer func() {
-		log.Printf("Unregister message send: %v", connection.userId)
-		RManager.unregister <- Unregister{user: user, action: SELF}
 		log.Printf("Closing Connection in readMessage: %v", connection.userId)
+		RManager.unregister <- Unregister{user: user, action: SELF}
 		connection.ws.Close()
 	}()
 	for {
