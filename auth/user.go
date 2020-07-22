@@ -100,8 +100,8 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := database.CheckRoom(ctx, client, roomId)
-	if err.Error() ==  "Room already present: " + roomId {
+	_, err := database.CheckRoom(ctx, client, roomId)
+	if err.Error() == "Room already present: "+roomId {
 		w.WriteHeader(http.StatusOK)
 		return
 	}

@@ -216,7 +216,7 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 		return "", fmt.Errorf("Error In CheckRoom : %v", err)
 
 	}
-	
+
 	return doc.Ref.ID, fmt.Errorf("Room already present: %s", roomId)
 }
 
