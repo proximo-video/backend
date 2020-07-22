@@ -36,6 +36,7 @@ func main() {
 	mux.HandleFunc("/deleteUser", auth.DeleteUser)
 	mux.HandleFunc("/newRoom", auth.NewRoom)
 	mux.HandleFunc("/deleteRoom", auth.DeleteRoom)
+	mux.HandleFunc("/checkRoom", auth.CheckRoom)
 	mux.HandleFunc("/ws", signaling.WebSocketHandler)
 
 	c := cors.New(cors.Options{

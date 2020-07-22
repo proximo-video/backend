@@ -23,7 +23,19 @@ func GetDocument(ctx context.Context, dbClient *firestore.Client, docId string, 
 	return dsnap, nil
 }
 
-// Get User
+// CheckUser Function checks if user exists or not, if doesn't then returns nil otherwise returns error
+func CheckUser(ctx context.Context, dbClient *firestore.Client, id string) error {
+	if id == "" {
+		return errors.New("Invalid user id")
+	}
+	_, err := GetDocument(ctx, dbClient, id, UserCollectionName)
+	if err.Error() == "Document Doesn't Exists" {
+		return nil
+	}
+	return err
+}
+
+// Get User, retrieves the user information from the DB
 func GetUser(ctx context.Context, dbClient *firestore.Client, id string) (User, error) {
 	var u User
 	if id == "" {
@@ -181,9 +193,9 @@ func RunWhereQuery(ctx context.Context, dbClient *firestore.Client, field string
 	return iter
 }
 
-func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) error {
+func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (string, error) {
 	if roomId == "" {
-		return errors.New("Invalid room id")
+		return "", errors.New("Invalid room id")
 	}
 	compareData := []Room{
 		{
@@ -196,15 +208,16 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) e
 		},
 	}
 	iter := RunWhereQuery(ctx, dbClient, "Rooms", UserCollectionName, "array-contains-any", compareData)
-	_, err := iter.Next()
+	doc, err := iter.Next()
 	if err == iterator.Done {
-		return nil
+		return "", nil
 	}
 	if err != nil {
-		return fmt.Errorf("Error In CheckRoom : %v", err)
+		return "", fmt.Errorf("Error In CheckRoom : %v", err)
 
 	}
-	return fmt.Errorf("Room already present: %s", roomId)
+	
+	return doc.Ref.ID, fmt.Errorf("Room already present: %s", roomId)
 }
 
 // New Room
@@ -212,7 +225,7 @@ func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 	if id == "" || room.RoomId == "" {
 		return errors.New("Invalid user or room id")
 	}
-	err := CheckRoom(ctx, dbClient, room.RoomId)
+	_, err := CheckRoom(ctx, dbClient, room.RoomId)
 	if err != nil {
 		return err
 	}
