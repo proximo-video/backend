@@ -6,6 +6,7 @@ import (
 )
 
 func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
+	log.Printf("Deleting user: %s from room: %s", connection.userId, room.roomId)
 	// remove user from the room
 	delete(room.users, connection)
 	// if user is owner then remove from owner field
@@ -16,6 +17,7 @@ func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	close(connection.send)
 	// if no more users are left then delete the room
 	if len(room.users) == 0 {
+		log.Printf("Deleting room: %v", room.roomId)
 		delete(r.rooms, room.roomId)
 	}
 }
@@ -40,6 +42,7 @@ func (r *RoomManager) HandleChannels() {
 				r.rooms[user.roomId] = room
 				log.Printf("Registered first User: %v", user.connection.userId)
 			} else {
+				// TODO: if the user already exists in the room then don't register
 				// if room exists then handle
 				// Send READY signal to owner and WAIT signal to other member
 				if _, ok := room.users[user.connection]; !ok {
@@ -61,15 +64,18 @@ func (r *RoomManager) HandleChannels() {
 			}
 		case unregis := <-r.unregister:
 			user := unregis.user
+			log.Printf("Unregister Request from user: %v", user.connection.userId)
 			room, ok := r.rooms[user.roomId]
 			if !ok {
 				log.Printf("Room %s Not found for user: %s", user.roomId, user.connection.userId)
 			} else {
 				if unregis.action == ALL {
+					log.Printf("Delete All Users %s in room %s", user.connection.userId, user.roomId)
 					for uc := range room.users {
 						r.deleteUser(uc, room)
 					}
 				} else {
+					log.Printf("Delete User %s in room %s", user.connection.userId, user.roomId)
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
 					} else {
@@ -78,7 +84,7 @@ func (r *RoomManager) HandleChannels() {
 				}
 			}
 		case mess := <-r.broadcast:
-			log.Printf("Got broadcast message from user : %v", mess.message.UserId)
+			// log.Printf("Got broadcast message from user : %v", mess.message.UserId)
 			if room, ok := r.rooms[mess.roomId]; ok {
 				// get marshal
 				marshalled, err := json.Marshal(mess.message)
@@ -87,7 +93,7 @@ func (r *RoomManager) HandleChannels() {
 				} else {
 					// loop through all users and broadcast message
 					for uc := range room.users {
-						log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+						// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 						// don't send message to sender again
 						if uc.ws != mess.ws {
 							log.Printf("Sending broadcast to user %v from user %v", uc.userId, mess.message.UserId)

@@ -23,15 +23,18 @@ const (
 func (connection *Connection) readMessage() {
 	// set maximum time limit for reading a messgage
 	connection.ws.SetReadDeadline(time.Now().Add(readWait))
+	connection.ws.SetPongHandler(func(string) error { connection.ws.SetReadDeadline(time.Now().Add(readWait)); return nil })
 	user := User{connection: connection}
 	defer func() {
-		log.Printf("Closing Connection: %v", connection.userId)
+		log.Printf("Unregister message send: %v", connection.userId)
 		RManager.unregister <- Unregister{user: user, action: SELF}
+		log.Printf("Closing Connection in readMessage: %v", connection.userId)
 		connection.ws.Close()
 	}()
 	for {
 		_, byteMsg, err := connection.ws.ReadMessage()
 		if err != nil {
+			log.Printf("error: %v", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 			}
@@ -85,9 +88,9 @@ func (connection *Connection) readMessage() {
 			// just send user to leave
 			RManager.unregister <- Unregister{user: user, action: SELF}
 		case MESSAGE:
-			log.Printf("broad from user: %v", user.connection.userId)
+			// log.Printf("broad from user: %v", user.connection.userId)
 			if user.roomId != "" {
-				log.Printf("Broadcast from user: %v for room %v", user.connection.userId, user.roomId)
+				// log.Printf("Broadcast from user: %v for room %v", user.connection.userId, user.roomId)
 				broadcastMess := _Message{
 					ws:      connection.ws,
 					message: msg,
@@ -101,6 +104,7 @@ func (connection *Connection) readMessage() {
 			}
 		}
 	}
+	log.Printf("For loop break")
 }
 
 // write writes a message with the given message type and payload.
@@ -113,7 +117,6 @@ func (connection *Connection) writeMessage() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		log.Printf("Closing Connection: %v", connection.userId)
 		connection.ws.Close()
 	}()
 	for {
