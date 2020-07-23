@@ -51,16 +51,26 @@ func (r *RoomManager) HandleChannels() {
 				if user.isOwner {
 					room.owner = user.connection
 				}
-				log.Printf("Registered second User: %v", user.connection.userId)
-				// send READY to owner to start offer process
-				marshalled, err := json.Marshal(Message{
-					Action: READY,
-					UserId: room.owner.userId,
-				})
-				if err != nil {
-					log.Fatalf("Marshalling Error in Register User: %v", err)
+				// send READY to all other users
+				log.Printf("Registered %v User: %v", len(room.users), user.connection.userId)
+				for uc := range room.users {
+					marshalled, err := json.Marshal(Message{
+						Action: READY,
+						To: uc.userId,
+						From: user.connection.userId,
+					})
+					if err != nil {
+						log.Printf("Marshalling Error in Register User: %v", err)
+						continue
+					}
+					// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+					// don't send message to sender again
+					if uc.ws != user.connection.ws {
+						log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
+						// send to the user channel
+						uc.send <- marshalled
+					} 
 				}
-				room.owner.send <- marshalled
 			}
 		case unregis := <-r.unregister:
 			user := unregis.user
@@ -82,23 +92,23 @@ func (r *RoomManager) HandleChannels() {
 					}
 				}
 			}
-		case mess := <-r.broadcast:
-			// log.Printf("Got broadcast message from user : %v", mess.message.UserId)
+		case mess := <-r.forward:
 			if room, ok := r.rooms[mess.roomId]; ok {
 				// get marshal
 				marshalled, err := json.Marshal(mess.message)
 				if err != nil {
-					log.Printf("error in marshalling in broadcast: %v", err)
+					log.Printf("error in marshalling in forward: %v", err)
 				} else {
-					// loop through all users and broadcast message
+					// loop through all users and forward message to the destination connection only
 					for uc := range room.users {
 						// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 						// don't send message to sender again
-						if uc.ws != mess.ws {
-							log.Printf("Sending broadcast to user %v from user %v", uc.userId, mess.message.UserId)
+						if uc.ws != mess.ws && mess.message.To == uc.userId {
+							log.Printf("Sending forward to user %v from user %v", uc.userId, mess.message.From)
 							// send to the user channel
 							uc.send <- marshalled
-						} 
+							break
+						}
 					}
 				}
 			}

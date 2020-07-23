@@ -87,19 +87,16 @@ func (connection *Connection) readMessage() {
 			// just send user to leave
 			RManager.unregister <- Unregister{user: user, action: SELF}
 		case MESSAGE:
-			// log.Printf("broad from user: %v", user.connection.userId)
-			if user.roomId != "" {
-				// log.Printf("Broadcast from user: %v for room %v", user.connection.userId, user.roomId)
-				broadcastMess := _Message{
-					ws:      connection.ws,
+			if user.roomId != "" &&  msg.From != "" && msg.To != "" && msg.From != msg.To{
+				log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
+				frowardMess := _Message{
+					ws: connection.ws,
 					message: msg,
-					roomId:  user.roomId,
+					roomId: user.roomId,
 				}
-				log.Printf("Broadcast from user send to broadcast channel: %v", user.connection.userId)
-				RManager.broadcast <- broadcastMess
+				RManager.forward <- frowardMess
 			} else {
-				log.Printf("Error in broadcast message: %v", err)
-				// TODO: send some reply of error
+				log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v", user.roomId, msg.From, msg.To)
 			}
 		}
 	}

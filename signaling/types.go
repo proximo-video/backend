@@ -10,6 +10,8 @@ type Message struct {
 	UserId string      `json:"id,omitempty"`
 	Data   interface{} `json:"data,omitempty"`
 	Type   string      `json:"type,omitempty"`
+	To     string      `json:"to,omitempty"`
+	From   string      `json:"from,omitempty"`
 }
 
 // Message type for internal usage only
@@ -47,8 +49,8 @@ type Unregister struct {
 type RoomManager struct {
 	rooms map[string]*Room
 
-	// broadcast channel to handle broadcast messages
-	broadcast chan _Message
+	// forward channel to handle forwarding messages
+	forward chan _Message
 
 	// register channel to handle registration / meeting start request from clients
 	register chan User
