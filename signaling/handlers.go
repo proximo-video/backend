@@ -14,7 +14,7 @@ var upgrader = websocket.Upgrader{
 
 var RManager = RoomManager{
 	rooms:     make(map[string]*Room),
-	broadcast: make(chan _Message),
+	forward: make(chan _Message),
 	register:  make(chan User),
 	unregister: make(chan Unregister),
 }
