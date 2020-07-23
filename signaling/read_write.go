@@ -33,16 +33,15 @@ func (connection *Connection) readMessage() {
 	for {
 		_, byteMsg, err := connection.ws.ReadMessage()
 		if err != nil {
-			log.Printf("error: %v", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+				log.Printf("Error in ReadMessage of readMessage: %v", err)
 			}
 			break
 		}
 		var msg Message
 		err = json.Unmarshal(byteMsg, &msg)
 		if err != nil {
-			log.Printf("error in unmarshalling in readMessage: %v", err)
+			log.Printf("Error in unmarshalling in readMessage: %v", err)
 			break
 		}
 		// take suitable actions
@@ -80,7 +79,7 @@ func (connection *Connection) readMessage() {
 				// iterate though all users and remove them one by one
 				RManager.unregister <- Unregister{user: user, action: ALL}
 			} else {
-				log.Println("User is not the owner of the room END not applicable")
+				log.Printf("User: %s is not the owner of the room: %s so END is not applicable", user.connection.userId, user.roomId)
 				// TODO: send some reply to user
 			}
 		case LEAVE:

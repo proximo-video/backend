@@ -24,7 +24,7 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
-		log.Println("Error WebSocketHandler: ", err)
+		log.Printf("Error WebSocketHandler: %v", err)
 		return
 	}
 	connection := &Connection{
