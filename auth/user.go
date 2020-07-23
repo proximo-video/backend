@@ -89,11 +89,11 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckRoom(w http.ResponseWriter, r *http.Request) {
-	ok, id := CheckHandler(r)
-	if !ok || id == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	// ok, id := CheckHandler(r)
+	// if !ok || id == "" {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
 	var roomId string
 	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
 		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
@@ -106,5 +106,26 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNotFound)
+	return
+}
+
+func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
+	ok, id := CheckHandler(r)
+	if !ok || id == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	var roomId string
+	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
+		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err := database.ToggleRoomLock(ctx, client, id, roomId)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 	return
 }

@@ -63,7 +63,7 @@ func UpdateDocument(ctx context.Context, dbClient *firestore.Client, docId strin
 		// Handle any errors in an appropriate way, such as returning them.
 		log.Printf("An error has occurred in UpdateDocument: %s", err)
 	}
-	return err
+	return nil
 }
 
 func UpdateUser(ctx context.Context, dbClient *firestore.Client, id string, field string, value interface{}) error {
@@ -234,5 +234,33 @@ func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 		return err
 	}
 	fmt.Printf("Room added successfully to user: %s", id)
+	return nil
+}
+
+func ToggleRoomLock(ctx context.Context, dbClient *firestore.Client, id string, roomId string) error {
+	var user User
+	user, err := GetUser(ctx, dbClient, id)
+	if err != nil {
+		return err
+	}
+	// iterate through the array of rooms and find that roomId and delete it
+	var roomIndx int = -1
+	for i, room := range user.Rooms {
+		if room.RoomId == roomId {
+			roomIndx = i
+			break
+		}
+	}
+	if roomIndx == -1 {
+		log.Printf("Room %v not present for user: %v", roomId, id)
+		return fmt.Errorf("Room %v not present for user: %v", roomId, id)
+	}
+	user.Rooms[roomIndx].IsLocked = !user.Rooms[roomIndx].IsLocked
+	// save the user
+	err = UpdateUser(ctx, dbClient, id, "Rooms", user.Rooms)
+	if err != nil {
+		return err
+	}
+	log.Printf("Room: %s lock toggled succesfully for user: %s", roomId, id)
 	return nil
 }
