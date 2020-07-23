@@ -2,11 +2,8 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
-
 	"WebRTCConf/database"
 )
 
@@ -23,6 +20,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 	js, err := json.Marshal(user)
 	if err != nil {
+		log.Printf("Marshalling Error in GetUser: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -58,7 +56,7 @@ func NewRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	var room database.Room
 	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("Could not parse JSON response in NewRoom: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -77,7 +75,7 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	var room database.Room
 	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("Could not parse JSON response in DeleteRoom: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -88,6 +86,7 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//
 func CheckRoom(w http.ResponseWriter, r *http.Request) {
 	// ok, id := CheckHandler(r)
 	// if !ok || id == "" {
@@ -96,7 +95,7 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 	// }
 	var roomId string
 	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("Could not parse JSON response in CheckRoom: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -117,7 +116,7 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 	}
 	var roomId string
 	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("Could not parse JSON response in ToggleRoomLock: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
