@@ -193,9 +193,9 @@ func RunWhereQuery(ctx context.Context, dbClient *firestore.Client, field string
 	return iter
 }
 
-func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (string, error) {
+func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (*firestore.DocumentSnapshot, error) {
 	if roomId == "" {
-		return "", errors.New("Invalid room id")
+		return nil, errors.New("Invalid room id")
 	}
 	compareData := []Room{
 		{
@@ -210,14 +210,14 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 	iter := RunWhereQuery(ctx, dbClient, "Rooms", UserCollectionName, "array-contains-any", compareData)
 	doc, err := iter.Next()
 	if err == iterator.Done {
-		return "", nil
+		return nil, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("Error In CheckRoom : %v", err)
+		return nil, fmt.Errorf("Error In CheckRoom : %v", err)
 
 	}
-	// doc.Ref.ID is the Id of document, which here is the User ID
-	return doc.Ref.ID, fmt.Errorf("Room already present: %s", roomId)
+	// doc is the document, which contains the room
+	return doc, nil
 }
 
 // New Room

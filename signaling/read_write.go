@@ -87,15 +87,27 @@ func (connection *Connection) readMessage() {
 			RManager.unregister <- Unregister{user: user, action: SELF}
 		case MESSAGE:
 			if user.roomId != "" &&  msg.From != "" && msg.To != "" && msg.From != msg.To{
-				log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
 				frowardMess := _Message{
 					ws: connection.ws,
 					message: msg,
 					roomId: user.roomId,
 				}
 				RManager.forward <- frowardMess
+				log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
 			} else {
-				log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v", user.roomId, msg.From, msg.To)
+				log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v in MESSAGE", user.roomId, msg.From, msg.To)
+			}
+		case APPROVE, REJECT:
+			if user.roomId != "" && msg.To != "" {
+				admitMess := Admit{
+					userId: msg.To,
+					action: msg.Action,
+					roomId: user.roomId,
+				}
+				RManager.admission <- admitMess
+				log.Printf("Approve entrance of user: %s by owner: %s for room: %s", msg.To, user.connection.userId, user.roomId)
+			} else {
+				log.Printf("Invalid RoomId: %v or msg.To: %v in APPROVE", user.roomId, msg.To)
 			}
 		}
 	}

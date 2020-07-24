@@ -86,21 +86,21 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//
+// CheckRoom checks whether room with roomId is present in the database or not
 func CheckRoom(w http.ResponseWriter, r *http.Request) {
-	// ok, id := CheckHandler(r)
-	// if !ok || id == "" {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
 	var roomId string
 	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
 		log.Printf("Could not parse JSON response in CheckRoom: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	_, err := database.CheckRoom(ctx, client, roomId)
-	if err.Error() == "Room already present: "+roomId {
+	doc, err := database.CheckRoom(ctx, client, roomId)
+	if err != nil {
+		log.Printf("Error in checkRoom handler: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if doc != nil {
 		w.WriteHeader(http.StatusOK)
 		return
 	}

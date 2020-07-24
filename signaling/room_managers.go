@@ -112,6 +112,18 @@ func (r *RoomManager) HandleChannels() {
 					}
 				}
 			}
+		case admitMess := <-r.admission:
+			if room, ok := r.rooms[admitMess.roomId]; ok {
+				if admitMess.action == APPROVE {
+					conn, ok := room.waitUsers[admitMess.userId]
+					if ok {
+						room.users[conn] = true
+						delete(room.waitUsers, admitMess.userId)
+					} else {
+						log.Printf("Error in Admission channel. User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
+					}
+				}
+			}
 		}
 	}
 }

@@ -30,6 +30,12 @@ const LEAVE string = "LEAVE"
 // to send any message to room memebers
 const MESSAGE string = "MESSAGE"
 
+// to approve enterance of a user in room
+const APPROVE string = "APPROVE"
+
+// to reject enterance of a user in room
+const REJECT string = "REJECT"
+
 /*----------------------------------------------------------*/
 
 // REPLY ACTIONS
@@ -37,14 +43,11 @@ const MESSAGE string = "MESSAGE"
 // action to indicate send "offer"
 const READY string = "READY"
 
-// action to indicate wait for pair to join
-const WAIT_PAIR string = "WAIT_PAIR"
-
-// action to indicate wait for pair to make offer
-const WAIT string = "WAIT"
-
 // action to indicate error
 const ERROR string = "ERROR"
+
+// action for approval request for entrance into room
+const ENTER string = "ENTER"
 
 /*----------------------------------------------------------*/
 
