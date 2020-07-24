@@ -74,16 +74,16 @@ func (r *RoomManager) HandleChannels() {
 								uc.send <- marshalled
 							}
 						}
-						// if room is locked then send ENTER request
+						// if room is locked then send PERMIT request
 						if dbRoom.IsLocked {
 							for ucId, _ := range room.waitUsers {
 								marshalled, err := json.Marshal(Message{
-									Action: ENTER,
+									Action: PERMIT,
 									To:     room.owner.userId,
 									From:   ucId,
 								})
 								if err != nil {
-									log.Printf("Register: Marshalling Error in sending ENTER action: %v", err)
+									log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
 									continue
 								}
 								room.owner.send <- marshalled
@@ -109,15 +109,15 @@ func (r *RoomManager) HandleChannels() {
 					if room.isLocked { // room is Locked
 						// put user in waitUsers queue
 						room.waitUsers[user.connection.userId] = user.connection
-						// if owner of the room is present then send ENTER request
+						// if owner of the room is present then send PERMIT request
 						if room.owner != nil {
 							marshalled, err := json.Marshal(Message{
-								Action: ENTER,
+								Action: PERMIT,
 								To:     room.owner.userId,
 								From:   user.connection.userId,
 							})
 							if err != nil {
-								log.Printf("Register: Marshalling Error in sending ENTER action: %v", err)
+								log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
 								continue
 							}
 							room.owner.send <- marshalled

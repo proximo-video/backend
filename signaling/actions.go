@@ -47,7 +47,7 @@ const READY string = "READY"
 const ERROR string = "ERROR"
 
 // action for approval request for entrance into room
-const ENTER string = "ENTER"
+const PERMIT string = "PERMIT"
 
 /*----------------------------------------------------------*/
 
