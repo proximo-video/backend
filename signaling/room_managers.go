@@ -20,6 +20,11 @@ func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	// if no more users are left then delete the room
 	if len(room.users) == 0 {
 		log.Printf("Deleting room: %v", room.roomId)
+		// Before deleting room close all connections in waitUsers queue also
+		for ucId, uc := range room.waitUsers {
+			close(uc.send)
+			delete(room.waitUsers, ucId)
+		}
 		delete(r.rooms, room.roomId)
 	}
 }
@@ -188,8 +193,45 @@ func (r *RoomManager) HandleChannels() {
 					if ok {
 						room.users[conn] = true
 						delete(room.waitUsers, admitMess.userId)
+						// send ready to all users
+						for uc := range room.users {
+							marshalled, err := json.Marshal(Message{
+								Action: READY,
+								To:     uc.userId,
+								From:   conn.userId,
+							})
+							if err != nil {
+								log.Printf("Admission channel: Marshalling Error: %v", err)
+								continue
+							}
+							// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+							// don't send message to sender again
+							if uc.ws != conn.ws {
+								log.Printf("Admission channel: Sending message to user %v from user %v", uc.userId, conn.userId)
+								// send to the user channel
+								uc.send <- marshalled
+							}
+						}
 					} else {
-						log.Printf("Error in Admission channel. User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
+						log.Printf("Admission channel: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
+					}
+				} else { // User has been denied permission to enter
+					conn, ok := room.waitUsers[admitMess.userId]
+					if ok {
+						marshalled, err := json.Marshal(Message{
+							Action: REJECT,
+							To:     admitMess.userId,
+							From:   room.owner.userId,
+						})
+						if err != nil {
+							log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
+						} else {
+							conn.send <- marshalled
+							close(conn.send)
+							delete(room.waitUsers, admitMess.userId)
+						}
+					} else {
+						log.Printf("Admission channel REJECT: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
 					}
 				}
 			}

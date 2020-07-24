@@ -47,10 +47,6 @@ func (connection *Connection) readMessage() {
 		// take suitable actions
 		switch msg.Action {
 		case START:
-			//TODO: Checks
-			// 1. Rooms should exist in database
-			// 2. If user is the owner then room should belong to him
-			// set user id
 			connection.userId = msg.UserId
 			// data in messgae will be room id
 			user.roomId = msg.Data.(string)
@@ -61,9 +57,6 @@ func (connection *Connection) readMessage() {
 			// handle one more thing sending the reply back
 			// reply should be handled after the registration so handle in room_managers
 		case JOIN:
-			//TODO: Checks
-			// 1. Rooms should exist in database
-			// set user id
 			connection.userId = msg.UserId
 			// data in messgae will be room id
 			user.roomId = msg.Data.(string)
