@@ -225,9 +225,12 @@ func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 	if id == "" || room.RoomId == "" {
 		return errors.New("Invalid user or room id")
 	}
-	_, err := CheckRoom(ctx, dbClient, room.RoomId)
+	doc, err := CheckRoom(ctx, dbClient, room.RoomId)
 	if err != nil {
 		return err
+	}
+	if doc != nil {
+		return fmt.Errorf("Room already present : %v", room.RoomId)
 	}
 	err = AddRoom(ctx, dbClient, id, room)
 	if err != nil {
@@ -263,4 +266,31 @@ func ToggleRoomLock(ctx context.Context, dbClient *firestore.Client, id string, 
 	}
 	log.Printf("Room: %s lock toggled succesfully for user: %s", roomId, id)
 	return nil
+}
+
+func GetRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (Room, error) {
+	var room Room
+	doc, err := CheckRoom(ctx, dbClient, roomId)
+	if err != nil {
+		log.Printf("Error in GetRoom handler: %v", err)
+		return room, err
+	}
+	if doc == nil {
+		return room, fmt.Errorf("Room not found: %v", roomId)
+	}
+	var user User
+	doc.DataTo(&user)
+	var roomIndx int = -1
+	for i, room := range user.Rooms {
+		if room.RoomId == roomId {
+			roomIndx = i
+			break
+		}
+	}
+	if roomIndx == -1 {
+		log.Printf("GetRoom: Room not found: %v", roomId)
+		return room, fmt.Errorf("Room not found: %v", roomId)
+	}
+	room = user.Rooms[roomIndx]
+	return room, nil
 }
