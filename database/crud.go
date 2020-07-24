@@ -294,3 +294,24 @@ func GetRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (Ro
 	room = user.Rooms[roomIndx]
 	return room, nil
 }
+
+func GetUserRoom(ctx context.Context, dbClient *firestore.Client, id string, roomId string) (Room, error) {
+	var room Room
+	user, err := GetUser(ctx, dbClient, id)
+	if err != nil {
+		return room, err
+	}
+	var roomIndx int = -1
+	for i, room := range user.Rooms {
+		if room.RoomId == roomId {
+			roomIndx = i
+			break
+		}
+	}
+	if roomIndx == -1 {
+		log.Printf("GetUserRoom: Room: %v not found for user: %v", roomId, user.Id)
+		return room, fmt.Errorf("Room: %v not found for user: %v", roomId, user.Id)
+	}
+	room = user.Rooms[roomIndx]
+	return room, nil
+}

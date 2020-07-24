@@ -13,7 +13,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	user, err := database.GetUser(ctx, client, id)
+	user, err := database.GetUser(Ctx, Client, id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -40,7 +40,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = database.DeleteUser(ctx, client, id)
+	err = database.DeleteUser(Ctx, Client, id)
 	if err != nil {
 		log.Printf("Error in DeleteUser: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -60,7 +60,7 @@ func NewRoom(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := database.NewRoom(ctx, client, id, room)
+	err := database.NewRoom(Ctx, Client, id, room)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -79,7 +79,7 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := database.DeleteRoom(ctx, client, id, room.RoomId)
+	err := database.DeleteRoom(Ctx, Client, id, room.RoomId)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -94,7 +94,7 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	doc, err := database.CheckRoom(ctx, client, roomId)
+	doc, err := database.CheckRoom(Ctx, Client, roomId)
 	if err != nil {
 		log.Printf("Error in checkRoom handler: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -120,7 +120,7 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := database.ToggleRoomLock(ctx, client, id, roomId)
+	err := database.ToggleRoomLock(Ctx, Client, id, roomId)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
