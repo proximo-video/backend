@@ -26,7 +26,7 @@ func init() {
 	auth.Env.GoogleClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 	auth.Env.RedirectURI = os.Getenv("REDIRECT_URI")
 	iceUrls := os.Getenv("ICE_URLS")
-	auth.Env.IceURLS = strings.Split(iceUrls, "#")
+	auth.Env.IceURLs = strings.Split(iceUrls, "#")
 	iceTokens := os.Getenv("ICE_TOKENS")
 	auth.Env.IceTokens = strings.Split(iceTokens, "#")
 	auth.Store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
