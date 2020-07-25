@@ -2,6 +2,8 @@ package auth
 
 import (
 	"WebRTCConf/database"
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -132,20 +134,29 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 func IceServer(w http.ResponseWriter, r *http.Request) {
 	var iceResponse IceResponse
 	httpClient := http.Client{}
-
+	marshalled, err := json.Marshal(XirsysPayload{
+		Format: "urls",
+	})
+	if err != nil {
+		log.Printf("Marshalling error: %v", err)
+	}
 	for i, iceUrl := range Env.IceURLs {
-		req, err := http.NewRequest(http.MethodPut, iceUrl, nil)
+		// log.Printf("IceUrl: %v", iceUrl)
+
+		req, err := http.NewRequest(http.MethodPut, iceUrl, bytes.NewReader(marshalled))
 		if err != nil {
 			log.Printf("IceServer: Error in Ice Server NewRequest: %v", err)
 			continue
 		}
+		// log.Printf("IceToken: %v", Env.IceTokens[i])
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Basic "+Env.IceTokens[i])
+		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(Env.IceTokens[i])))
 		res, err := httpClient.Do(req)
 		if err != nil {
 			log.Printf("IceServer: Error in Ice Server Do: %v", err)
 			continue
 		}
+		// log.Printf("Response body: %v", res.Body)
 		var xi XirsysResponse
 		if err := json.NewDecoder(res.Body).Decode(&xi); err != nil {
 			log.Printf("could not parse JSON response: %v", err)
@@ -155,9 +166,11 @@ func IceServer(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error in Credentials response: %v", err)
 			continue
 		}
-		iceResponse.Ice = append(iceResponse.Ice, xi.V)
+		// log.Printf("XiResponse V: %v %v", reflect.TypeOf(xi.V), xi.S)
+		// log.Printf("XiIceObject V: %v", xi.V.IceObject)
+		iceResponse.Ice = append(iceResponse.Ice, xi.V.IceObject)
 	}
-	marshalled, err := json.Marshal(iceResponse)
+	marshalled, err = json.Marshal(iceResponse)
 	if err != nil {
 		log.Printf("IceServer: Error in marshalling: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

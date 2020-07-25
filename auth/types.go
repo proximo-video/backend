@@ -49,17 +49,25 @@ type EnvVariables struct {
 	IceTokens          []string
 }
 
-type IceServers struct {
-	Username string `json:"username"`
-	Credential string	`json:"credential"`
-	Urls []string	`json:"urls"`
+type XirsysResponse struct {
+	V V      `json:"v"`
+	S string `json:"s"`
 }
 
-type XirsysResponse struct {
-	V IceServers `json:"v"`
-	S string `json:"s"`
+type V struct {
+	IceObject IceServers `json:"iceServers"`
+}
+
+type IceServers struct {
+	Username   string   `json:"username"`
+	Urls       []string `json:"urls"`
+	Credential string   `json:"credential"`
 }
 
 type IceResponse struct {
 	Ice []IceServers `json:"iceServers"`
+}
+
+type XirsysPayload struct {
+	Format string `json:"format"`
 }
