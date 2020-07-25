@@ -90,13 +90,13 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 
 // CheckRoom checks whether room with roomId is present in the database or not
 func CheckRoom(w http.ResponseWriter, r *http.Request) {
-	var roomId string
-	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
+	var room database.Room
+	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
 		log.Printf("Could not parse JSON response in CheckRoom: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	doc, err := database.CheckRoom(Ctx, Client, roomId)
+	doc, err := database.CheckRoom(Ctx, Client, room.RoomId)
 	if err != nil {
 		log.Printf("Error in checkRoom handler: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
