@@ -133,6 +133,10 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 
 func IceServer(w http.ResponseWriter, r *http.Request) {
 	var iceResponse IceResponse
+	var sturnServers IceServers
+	sturnServers.Urls = append(sturnServers.Urls, "stun:ss-turn1.xirsys.com")
+	sturnServers.Urls = append(sturnServers.Urls, "stun:stun.l.google.com:19302")
+	iceResponse.Ice = append(iceResponse.Ice, sturnServers)
 	httpClient := http.Client{}
 	marshalled, err := json.Marshal(XirsysPayload{
 		Format: "urls",
