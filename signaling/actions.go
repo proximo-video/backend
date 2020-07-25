@@ -49,6 +49,9 @@ const ERROR string = "ERROR"
 // action for approval request for entrance into room
 const PERMIT string = "PERMIT"
 
+// action to indicate wait
+const WAIT string = "WAIT"
+
 /*----------------------------------------------------------*/
 
 // UNREGISTER ACTIONS

@@ -86,7 +86,7 @@ func (connection *Connection) readMessage() {
 					roomId: user.roomId,
 				}
 				RManager.forward <- frowardMess
-				log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
+				// log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
 			} else {
 				log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v in MESSAGE", user.roomId, msg.From, msg.To)
 			}

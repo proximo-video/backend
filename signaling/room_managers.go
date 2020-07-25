@@ -7,6 +7,20 @@ import (
 	"log"
 )
 
+func (c *Connection) SendError(err error) {
+	marshalled, err := json.Marshal(Message{
+		Action: ERROR,
+		UserId: c.userId,
+		Data: err.Error(),
+		To: c.userId,
+	})
+	if err == nil {
+		c.send <- marshalled
+	} else {
+		log.Printf("SendError: Error in marshaling: %v", err)
+	}
+}
+
 func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	log.Printf("Deleting user: %s from room: %s", connection.userId, room.roomId)
 	// remove user from the room
@@ -37,6 +51,7 @@ func (r *RoomManager) HandleChannels() {
 				dbRoom, err := database.GetUserRoom(auth.Ctx, auth.Client, user.connection.userId, user.roomId)
 				if err != nil {
 					log.Printf("Register: error: %v", err)
+					user.connection.SendError(err)
 				} else {
 					room, ok := r.rooms[user.roomId]
 					if !ok { // case room not found
@@ -74,7 +89,7 @@ func (r *RoomManager) HandleChannels() {
 								uc.send <- marshalled
 							}
 						}
-						// if room is locked then send PERMIT request
+						// if room is locked then send PERMIT request to owner from all waiting Users
 						if dbRoom.IsLocked {
 							for ucId, _ := range room.waitUsers {
 								marshalled, err := json.Marshal(Message{
@@ -95,6 +110,7 @@ func (r *RoomManager) HandleChannels() {
 				dbRoom, err := database.GetRoom(auth.Ctx, auth.Client, user.roomId)
 				if err != nil {
 					log.Printf("Register: user: %v, Error in GetRoom: %v", user.connection.userId, err)
+					user.connection.SendError(err)
 				} else {
 					if room, ok := r.rooms[user.roomId]; !ok {
 						room = &Room{ // create new room
@@ -119,8 +135,19 @@ func (r *RoomManager) HandleChannels() {
 							if err != nil {
 								log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
 								continue
+							} else {
+								room.owner.send <- marshalled
 							}
-							room.owner.send <- marshalled
+						}
+						marshalled, err := json.Marshal(Message{
+							Action: WAIT,
+							To:     user.connection.userId,
+							From:   "server",
+						})
+						if err == nil {
+							user.connection.send <- marshalled
+						} else {
+							log.Printf("Register: Marshalling Error in sending WAIT action: %v", err)
 						}
 					} else { // room is not Locked
 						room.users[user.connection] = true
@@ -161,6 +188,9 @@ func (r *RoomManager) HandleChannels() {
 					log.Printf("Delete Self User %s in room %s", user.connection.userId, user.roomId)
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
+					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
+						close(user.connection.send)
+						delete(room.waitUsers, user.connection.userId)
 					} else {
 						log.Printf("User %s not present in room %s", user.connection.userId, user.roomId)
 					}
