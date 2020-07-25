@@ -59,9 +59,9 @@ type V struct {
 }
 
 type IceServers struct {
-	Username   string   `json:"username"`
+	Username   string   `json:"username,omitempty"`
 	Urls       []string `json:"urls"`
-	Credential string   `json:"credential"`
+	Credential string   `json:"credential,omitempty"`
 }
 
 type IceResponse struct {
