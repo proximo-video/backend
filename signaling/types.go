@@ -39,11 +39,18 @@ type Room struct {
 	isLocked bool
 	owner    *Connection
 	users    map[*Connection]bool
+	waitUsers map[string]*Connection
 }
 
 type Unregister struct {
 	user   User
 	action string
+}
+
+type Admit struct {
+	userId string
+	action string
+	roomId string
 }
 
 type RoomManager struct {
@@ -57,4 +64,7 @@ type RoomManager struct {
 
 	// unregister channel to handle leave / end meeting request from clients
 	unregister chan Unregister
+
+	// admission channel to handle all admission / rejection replies from the owner of the room
+	admission chan Admit
 }

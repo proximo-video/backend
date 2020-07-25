@@ -17,6 +17,7 @@ var RManager = RoomManager{
 	forward: make(chan _Message),
 	register:  make(chan User),
 	unregister: make(chan Unregister),
+	admission: make(chan Admit),
 }
 
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {

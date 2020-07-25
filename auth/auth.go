@@ -15,10 +15,10 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-var ctx = context.Background()
+var Ctx = context.Background()
 var Env EnvVariables
 var Store *sessions.CookieStore
-var client = database.CreateDatabaseClient(ctx)
+var Client = database.CreateDatabaseClient(Ctx)
 
 func GetSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
@@ -44,12 +44,12 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 		user = authGoogle(w, r, code.Code)
 		MyHandler(w, r, user.Id)
 	}
-	err := database.CheckUser(ctx, client, user.Id)
+	err := database.CheckUser(Ctx, Client, user.Id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	database.SaveUser(ctx, client, user.Id, user)
+	database.SaveUser(Ctx, Client, user.Id, user)
 }
 
 func authGithub(w http.ResponseWriter, r *http.Request, code string) database.User {

@@ -1,6 +1,8 @@
 package signaling
 
 import (
+	"WebRTCConf/auth"
+	"WebRTCConf/database"
 	"encoding/json"
 	"log"
 )
@@ -18,6 +20,11 @@ func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	// if no more users are left then delete the room
 	if len(room.users) == 0 {
 		log.Printf("Deleting room: %v", room.roomId)
+		// Before deleting room close all connections in waitUsers queue also
+		for ucId, uc := range room.waitUsers {
+			close(uc.send)
+			delete(room.waitUsers, ucId)
+		}
 		delete(r.rooms, room.roomId)
 	}
 }
@@ -26,50 +33,117 @@ func (r *RoomManager) HandleChannels() {
 	for {
 		select {
 		case user := <-r.register:
-			room, ok := r.rooms[user.roomId]
-			if !ok { // case room not found
-				// create new room
-				room = &Room{
-					roomId:   user.roomId,
-					isLocked: false, // handle later
-					users:    make(map[*Connection]bool),
-				}
-				room.users[user.connection] = true
-				// if this connection is the owner of the room register user as owner
-				if user.isOwner {
-					room.owner = user.connection
-				}
-				r.rooms[user.roomId] = room
-				log.Printf("Registered first User: %v", user.connection.userId)
-			} else {
-				// TODO: if the user already exists in the room then don't register
-				// if room exists then handle
-				// Send READY signal to owner and WAIT signal to other member
-				if _, ok := room.users[user.connection]; !ok {
-					room.users[user.connection] = true
-				}
-				if user.isOwner {
-					room.owner = user.connection
-				}
-				// send READY to all other users
-				log.Printf("Registered %v User: %v", len(room.users), user.connection.userId)
-				for uc := range room.users {
-					marshalled, err := json.Marshal(Message{
-						Action: READY,
-						To: uc.userId,
-						From: user.connection.userId,
-					})
-					if err != nil {
-						log.Printf("Marshalling Error in Register User: %v", err)
-						continue
+			if user.isOwner {
+				dbRoom, err := database.GetUserRoom(auth.Ctx, auth.Client, user.connection.userId, user.roomId)
+				if err != nil {
+					log.Printf("Register: error: %v", err)
+				} else {
+					room, ok := r.rooms[user.roomId]
+					if !ok { // case room not found
+						room = &Room{ // create new room
+							roomId:    user.roomId,
+							isLocked:  dbRoom.IsLocked,
+							users:     make(map[*Connection]bool),
+							waitUsers: make(map[string]*Connection),
+						}
+						room.users[user.connection] = true
+						room.owner = user.connection
+						r.rooms[user.roomId] = room
+						log.Printf("Registered Owner: %v and Created room: %v", user.connection.userId, user.roomId)
+					} else {
+						if _, ok := room.users[user.connection]; !ok {
+							room.users[user.connection] = true
+							room.owner = user.connection
+						}
+						// send ready to all users
+						for uc := range room.users {
+							marshalled, err := json.Marshal(Message{
+								Action: READY,
+								To:     uc.userId,
+								From:   user.connection.userId,
+							})
+							if err != nil {
+								log.Printf("Marshalling Error in Register User: %v", err)
+								continue
+							}
+							// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+							// don't send message to sender again
+							if uc.ws != user.connection.ws {
+								log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
+								// send to the user channel
+								uc.send <- marshalled
+							}
+						}
+						// if room is locked then send PERMIT request
+						if dbRoom.IsLocked {
+							for ucId, _ := range room.waitUsers {
+								marshalled, err := json.Marshal(Message{
+									Action: PERMIT,
+									To:     room.owner.userId,
+									From:   ucId,
+								})
+								if err != nil {
+									log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
+									continue
+								}
+								room.owner.send <- marshalled
+							}
+						}
 					}
-					// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
-					// don't send message to sender again
-					if uc.ws != user.connection.ws {
-						log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
-						// send to the user channel
-						uc.send <- marshalled
-					} 
+				}
+			} else {
+				dbRoom, err := database.GetRoom(auth.Ctx, auth.Client, user.roomId)
+				if err != nil {
+					log.Printf("Register: user: %v, Error in GetRoom: %v", user.connection.userId, err)
+				} else {
+					if room, ok := r.rooms[user.roomId]; !ok {
+						room = &Room{ // create new room
+							roomId:    user.roomId,
+							isLocked:  dbRoom.IsLocked,
+							users:     make(map[*Connection]bool),
+							waitUsers: make(map[string]*Connection),
+						}
+						r.rooms[user.roomId] = room
+					}
+					room := r.rooms[user.roomId]
+					if room.isLocked { // room is Locked
+						// put user in waitUsers queue
+						room.waitUsers[user.connection.userId] = user.connection
+						// if owner of the room is present then send PERMIT request
+						if room.owner != nil {
+							marshalled, err := json.Marshal(Message{
+								Action: PERMIT,
+								To:     room.owner.userId,
+								From:   user.connection.userId,
+							})
+							if err != nil {
+								log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
+								continue
+							}
+							room.owner.send <- marshalled
+						}
+					} else { // room is not Locked
+						room.users[user.connection] = true
+						// send ready to all users
+						for uc := range room.users {
+							marshalled, err := json.Marshal(Message{
+								Action: READY,
+								To:     uc.userId,
+								From:   user.connection.userId,
+							})
+							if err != nil {
+								log.Printf("Marshalling Error in Register User: %v", err)
+								continue
+							}
+							// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+							// don't send message to sender again
+							if uc.ws != user.connection.ws {
+								log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
+								// send to the user channel
+								uc.send <- marshalled
+							}
+						}
+					}
 				}
 			}
 		case unregis := <-r.unregister:
@@ -109,6 +183,55 @@ func (r *RoomManager) HandleChannels() {
 							uc.send <- marshalled
 							break
 						}
+					}
+				}
+			}
+		case admitMess := <-r.admission:
+			if room, ok := r.rooms[admitMess.roomId]; ok {
+				if admitMess.action == APPROVE {
+					conn, ok := room.waitUsers[admitMess.userId]
+					if ok {
+						room.users[conn] = true
+						delete(room.waitUsers, admitMess.userId)
+						// send ready to all users
+						for uc := range room.users {
+							marshalled, err := json.Marshal(Message{
+								Action: READY,
+								To:     uc.userId,
+								From:   conn.userId,
+							})
+							if err != nil {
+								log.Printf("Admission channel: Marshalling Error: %v", err)
+								continue
+							}
+							// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+							// don't send message to sender again
+							if uc.ws != conn.ws {
+								log.Printf("Admission channel: Sending message to user %v from user %v", uc.userId, conn.userId)
+								// send to the user channel
+								uc.send <- marshalled
+							}
+						}
+					} else {
+						log.Printf("Admission channel: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
+					}
+				} else { // User has been denied permission to enter
+					conn, ok := room.waitUsers[admitMess.userId]
+					if ok {
+						marshalled, err := json.Marshal(Message{
+							Action: REJECT,
+							To:     admitMess.userId,
+							From:   room.owner.userId,
+						})
+						if err != nil {
+							log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
+						} else {
+							conn.send <- marshalled
+							close(conn.send)
+							delete(room.waitUsers, admitMess.userId)
+						}
+					} else {
+						log.Printf("Admission channel REJECT: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
 					}
 				}
 			}
