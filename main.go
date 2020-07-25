@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"WebRTCConf/auth"
 
@@ -24,6 +25,10 @@ func init() {
 	auth.Env.GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
 	auth.Env.GoogleClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 	auth.Env.RedirectURI = os.Getenv("REDIRECT_URI")
+	iceUrls := os.Getenv("ICE_URLS")
+	auth.Env.IceURLS = strings.Split(iceUrls, "#")
+	iceTokens := os.Getenv("ICE_TOKENS")
+	auth.Env.IceTokens = strings.Split(iceTokens, "#")
 	auth.Store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 }
 
@@ -38,6 +43,7 @@ func main() {
 	mux.HandleFunc("/deleteRoom", auth.DeleteRoom)
 	mux.HandleFunc("/checkRoom", auth.CheckRoom)
 	mux.HandleFunc("/toggle", auth.ToggleRoomLock)
+	mux.HandleFunc("/iceserver", auth.IceServer)
 	mux.HandleFunc("/ws", signaling.WebSocketHandler)
 
 	c := cors.New(cors.Options{

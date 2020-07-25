@@ -45,4 +45,21 @@ type EnvVariables struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	RedirectURI        string
+	IceURLs            []string
+	IceTokens          []string
+}
+
+type IceServers struct {
+	Username string `json:"username"`
+	Credential string	`json:"credential"`
+	Urls []string	`json:"urls"`
+}
+
+type XirsysResponse struct {
+	V IceServers `json:"v"`
+	S string `json:"s"`
+}
+
+type IceResponse struct {
+	Ice []IceServers `json:"iceServers"`
 }

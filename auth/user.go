@@ -1,10 +1,10 @@
 package auth
 
 import (
+	"WebRTCConf/database"
 	"encoding/json"
 	"log"
 	"net/http"
-	"WebRTCConf/database"
 )
 
 func GetUser(w http.ResponseWriter, r *http.Request) {
@@ -127,4 +127,43 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	return
+}
+
+func IceServer(w http.ResponseWriter, r *http.Request) {
+	var iceResponse IceResponse
+	httpClient := http.Client{}
+
+	for i, iceUrl := range Env.IceURLs {
+		req, err := http.NewRequest(http.MethodPut, iceUrl, nil)
+		if err != nil {
+			log.Printf("IceServer: Error in Ice Server NewRequest: %v", err)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Basic "+Env.IceTokens[i])
+		res, err := httpClient.Do(req)
+		if err != nil {
+			log.Printf("IceServer: Error in Ice Server Do: %v", err)
+			continue
+		}
+		var xi XirsysResponse
+		if err := json.NewDecoder(res.Body).Decode(&xi); err != nil {
+			log.Printf("could not parse JSON response: %v", err)
+			continue
+		}
+		if xi.S != "ok" {
+			log.Printf("Error in Credentials response: %v", err)
+			continue
+		}
+		iceResponse.Ice = append(iceResponse.Ice, xi.V)
+	}
+	marshalled, err := json.Marshal(iceResponse)
+	if err != nil {
+		log.Printf("IceServer: Error in marshalling: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if len(iceResponse.Ice) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.Write(marshalled)
+	}
 }
