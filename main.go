@@ -47,7 +47,7 @@ func main() {
 	mux.HandleFunc("/ws", signaling.WebSocketHandler)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:8000", "https://localhost:8000"},
+		AllowedOrigins:   []string{"http://localhost:8000", "https://localhost:8000", "https://proximo.netlify.app"},
 		AllowCredentials: true,
 		// Enable Debugging for testing, consider disabling in production
 		Debug: false,

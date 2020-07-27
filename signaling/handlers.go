@@ -21,7 +21,14 @@ var RManager = RoomManager{
 }
 
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	upgrader.CheckOrigin = func(r *http.Request) bool { 
+		origin := r.Header["Origin"]
+		log.Printf("Origin: %v", origin)
+		if origin[0] == "http://localhost:8000" || origin[0] == "https://proximo.netlify.app" {
+			return true
+		}
+		return false 
+	}
 	ws, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
