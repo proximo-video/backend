@@ -189,6 +189,7 @@ func (r *RoomManager) HandleChannels() {
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
 					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
+						// TODO: Check if there are no more users in waitUsers and users then delete the room
 						close(user.connection.send)
 						delete(room.waitUsers, user.connection.userId)
 					} else {
