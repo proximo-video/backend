@@ -59,12 +59,19 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Auth: userId 2 %v", user.Id)
 	err = database.CheckUser(Ctx, Client, user.Id)
 	if err != nil {
-		log.Printf("Auth: error checkUser: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		if err == database.NotFound {
+			log.Printf("Auth: userId 3: %v", user.Id)
+			database.SaveUser(Ctx, Client, user.Id, user)
+			w.WriteHeader(http.StatusCreated)
+		} else if err == database.InvalidRequest {
+			log.Printf("Auth: error checkUser: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			log.Printf("Auth: error checkUser: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
-	log.Printf("Auth: userId 3: %v", user.Id)
-	database.SaveUser(Ctx, Client, user.Id, user)
 }
 
 func authGithub(w http.ResponseWriter, r *http.Request, code string) (database.User, error) {

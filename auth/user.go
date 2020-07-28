@@ -17,7 +17,13 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := database.GetUser(Ctx, Client, id)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		if err == database.NotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 	js, err := json.Marshal(user)
@@ -45,7 +51,11 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	err = database.DeleteUser(Ctx, Client, id)
 	if err != nil {
 		log.Printf("Error in DeleteUser: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 }
@@ -64,7 +74,13 @@ func NewRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	err := database.NewRoom(Ctx, Client, id, room)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if err == database.RoomPresent {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 }
@@ -83,7 +99,13 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	err := database.DeleteRoom(Ctx, Client, id, room.RoomId)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if err == database.NotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 }
@@ -98,8 +120,12 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	doc, err := database.CheckRoom(Ctx, Client, room.RoomId)
 	if err != nil {
+		if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		log.Printf("Error in checkRoom handler: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if doc != nil {
@@ -124,7 +150,13 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 	}
 	err := database.ToggleRoomLock(Ctx, Client, id, roomId)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		if err == database.InvalidRequest {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if err == database.NotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 	w.WriteHeader(http.StatusOK)
