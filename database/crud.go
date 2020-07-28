@@ -29,9 +29,9 @@ func CheckUser(ctx context.Context, dbClient *firestore.Client, id string) error
 		return errors.New("Invalid user id")
 	}
 	_, err := GetDocument(ctx, dbClient, id, UserCollectionName)
-	if err.Error() == "Document Doesn't Exists" {
-		return nil
-	}
+	// if err.Error() == "Document Doesn't Exists" {
+	// 	return nil
+	// }
 	return err
 }
 
