@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -11,6 +10,10 @@ import (
 )
 
 func GetDocument(ctx context.Context, dbClient *firestore.Client, docId string, collection string) (*firestore.DocumentSnapshot, error) {
+	if docId == "" || collection == "" {
+		log.Printf("GetDocument: Invalid document id or collection name")
+		return nil, InvalidRequest
+	}
 	dsnap, err := dbClient.Collection(collection).Doc(docId).Get(ctx)
 	if !dsnap.Exists() {
 		log.Printf("Document Doesn't Exists: %v", docId)
@@ -23,10 +26,11 @@ func GetDocument(ctx context.Context, dbClient *firestore.Client, docId string, 
 	return dsnap, nil
 }
 
-// CheckUser Function checks if user exists or not, if doesn't then returns nil otherwise returns error
+// CheckUser Function checks if user exists or not, if doesn't then returns NotFound otherwise returns nil
 func CheckUser(ctx context.Context, dbClient *firestore.Client, id string) error {
 	if id == "" {
-		return errors.New("Invalid user id")
+		log.Printf("CheckUser: Invalid user id")
+		return InvalidRequest
 	}
 	_, err := GetDocument(ctx, dbClient, id, UserCollectionName)
 	if err != nil {
