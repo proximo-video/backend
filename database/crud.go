@@ -14,11 +14,11 @@ func GetDocument(ctx context.Context, dbClient *firestore.Client, docId string, 
 	dsnap, err := dbClient.Collection(collection).Doc(docId).Get(ctx)
 	if !dsnap.Exists() {
 		log.Printf("Document Doesn't Exists: %v", docId)
-		return dsnap, errors.New("Document Doesn't Exists")
+		return nil, NotFound
 	}
 	if err != nil {
 		log.Printf("Failed Getting document: %v", err)
-		return dsnap, err
+		return nil, err
 	}
 	return dsnap, nil
 }
@@ -29,17 +29,18 @@ func CheckUser(ctx context.Context, dbClient *firestore.Client, id string) error
 		return errors.New("Invalid user id")
 	}
 	_, err := GetDocument(ctx, dbClient, id, UserCollectionName)
-	// if err.Error() == "Document Doesn't Exists" {
-	// 	return nil
-	// }
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Get User, retrieves the user information from the DB
 func GetUser(ctx context.Context, dbClient *firestore.Client, id string) (User, error) {
 	var u User
 	if id == "" {
-		return u, errors.New("Invalid user id")
+		log.Printf("GetUser: Invalid user id")
+		return u, InvalidRequest
 	}
 	dsnap, err := GetDocument(ctx, dbClient, id, UserCollectionName)
 	if err != nil {
@@ -51,7 +52,8 @@ func GetUser(ctx context.Context, dbClient *firestore.Client, id string) (User, 
 
 func UpdateDocument(ctx context.Context, dbClient *firestore.Client, docId string, field string, value interface{}, collection string) error {
 	if docId == "" || field == "" || collection == "" {
-		return errors.New("Invalid user id or field value or collection name")
+		log.Printf("Invalid user id or field value or collection name")
+		return InvalidRequest
 	}
 	_, err := dbClient.Collection(collection).Doc(docId).Update(ctx, []firestore.Update{
 		{
@@ -62,13 +64,15 @@ func UpdateDocument(ctx context.Context, dbClient *firestore.Client, docId strin
 	if err != nil {
 		// Handle any errors in an appropriate way, such as returning them.
 		log.Printf("An error has occurred in UpdateDocument: %s", err)
+		return err
 	}
 	return nil
 }
 
 func UpdateUser(ctx context.Context, dbClient *firestore.Client, id string, field string, value interface{}) error {
 	if id == "" || field == "" {
-		return errors.New("Invalid user id or field value")
+		log.Printf("UpdateUser: Invalid user id or field value")
+		return InvalidRequest
 	}
 	err := UpdateDocument(ctx, dbClient, id, field, value, UserCollectionName)
 	return err
@@ -76,19 +80,22 @@ func UpdateUser(ctx context.Context, dbClient *firestore.Client, id string, fiel
 
 func SaveDocument(ctx context.Context, dbClient *firestore.Client, docId string, data interface{}, collection string) error {
 	if docId == "" {
-		return errors.New("Invalid document id")
+		log.Printf("SaveDocument: Invalid document id")
+		return InvalidRequest
 	}
 	_, err := dbClient.Collection(collection).Doc(docId).Set(ctx, data)
 	if err != nil {
 		log.Printf("Failed Saving data: %v", err)
+		return err
 	}
 	log.Printf("Saved data successfully: %v", err)
-	return err
+	return nil
 }
 
 func SaveUser(ctx context.Context, dbClient *firestore.Client, id string, user User) error {
 	if id == "" || id != user.Id {
-		return errors.New("Invalid user id")
+		log.Printf("SaveUser: Invalid user id")
+		return InvalidRequest
 	}
 	err := SaveDocument(ctx, dbClient, id, user, UserCollectionName)
 	return err
@@ -96,7 +103,8 @@ func SaveUser(ctx context.Context, dbClient *firestore.Client, id string, user U
 
 func AddRoom(ctx context.Context, dbClient *firestore.Client, id string, room Room) error {
 	if id == "" || room.RoomId == "" {
-		return errors.New("Invalid user id or room id")
+		log.Printf("AddRoom: Invalid user id or room id")
+		return InvalidRequest
 	}
 	var user User
 	// get the user document
@@ -119,7 +127,8 @@ func AddRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 // Delete Room
 func DeleteRoom(ctx context.Context, dbClient *firestore.Client, id string, roomId string) error {
 	if id == "" || roomId == "" {
-		return errors.New("Invalid user id or room id")
+		log.Printf("DeleteRoom: Invalid user id or room id")
+		return InvalidRequest
 	}
 	var user User
 	// get the user document
@@ -138,7 +147,7 @@ func DeleteRoom(ctx context.Context, dbClient *firestore.Client, id string, room
 	}
 	if roomIndx == -1 {
 		log.Printf("Room %v not present for user: %v", roomId, id)
-		return fmt.Errorf("Room %v not present for user: %v", roomId, id)
+		return NotFound
 	}
 	user.Rooms[roomIndx] = user.Rooms[len(user.Rooms)-1]
 	user.Rooms = user.Rooms[:len(user.Rooms)-1]
@@ -148,44 +157,48 @@ func DeleteRoom(ctx context.Context, dbClient *firestore.Client, id string, room
 		return err
 	}
 	fmt.Printf("Room %s deleted succefully for user: %s", roomId, id)
-	return err
+	return nil
 }
 
 func DeleteDocument(ctx context.Context, dbClient *firestore.Client, docId string, collection string) error {
 	if docId == "" || collection == "" {
-		return errors.New("Invalid document id or collection name")
+		log.Printf("DeleteDocument: Invalid document id or collection name")
+		return InvalidRequest
 	}
 	_, err := dbClient.Collection(collection).Doc(docId).Delete(ctx)
 	if err != nil {
 		// Handle any errors in an appropriate way, such as returning them.
 		log.Printf("An error has occurred in DeleteUser: %s", err)
+		return err
 	}
-	return err
+	return nil
 }
 
 // Delete User
 func DeleteUser(ctx context.Context, dbClient *firestore.Client, id string) error {
 	if id == "" {
-		return errors.New("Invalid user id")
+		log.Printf("DeleteUse: Invalid user id")
+		return InvalidRequest
 	}
 	err := DeleteDocument(ctx, dbClient, id, UserCollectionName)
 	if err != nil {
 		return err
 	}
 	log.Printf("User %s Deleted Successfully", id)
-	return err
+	return nil
 }
 
 func DeleteField(ctx context.Context, dbClient *firestore.Client, id string, field string) error {
 	if id == "" || field == "" {
-		return errors.New("Invalid user id or field value")
+		log.Printf("DeleteField: Invalid user id or field value")
+		return InvalidRequest
 	}
 	err := UpdateUser(ctx, dbClient, id, field, firestore.Delete)
 	if err != nil {
 		return err
 	}
 	log.Printf("Field %s Deleted Successfully for User: %s", field, id)
-	return err
+	return nil
 }
 
 func RunWhereQuery(ctx context.Context, dbClient *firestore.Client, field string, collection string, query string, compareData interface{}) *firestore.DocumentIterator {
@@ -195,7 +208,8 @@ func RunWhereQuery(ctx context.Context, dbClient *firestore.Client, field string
 
 func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (*firestore.DocumentSnapshot, error) {
 	if roomId == "" {
-		return nil, errors.New("Invalid room id")
+		log.Printf("CheckRoom: Invalid room id")
+		return nil, InvalidRequest
 	}
 	compareData := []Room{
 		{
@@ -213,8 +227,8 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Error In CheckRoom : %v", err)
-
+		log.Printf("Error In CheckRoom : %v", err)
+		return nil, err
 	}
 	// doc is the document, which contains the room
 	return doc, nil
@@ -223,14 +237,15 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 // New Room
 func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Room) error {
 	if id == "" || room.RoomId == "" {
-		return errors.New("Invalid user or room id")
+		log.Printf("NewRoom: Invalid user or room id")
+		return InvalidRequest
 	}
 	doc, err := CheckRoom(ctx, dbClient, room.RoomId)
 	if err != nil {
 		return err
 	}
 	if doc != nil {
-		return fmt.Errorf("Room already present : %v", room.RoomId)
+		return RoomPresent
 	}
 	err = AddRoom(ctx, dbClient, id, room)
 	if err != nil {
@@ -241,6 +256,10 @@ func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 }
 
 func ToggleRoomLock(ctx context.Context, dbClient *firestore.Client, id string, roomId string) error {
+	if id == "" || roomId == "" {
+		log.Printf("ToggleRoomLock: Invalid room or user id")
+		return InvalidRequest
+	}
 	var user User
 	user, err := GetUser(ctx, dbClient, id)
 	if err != nil {
@@ -256,7 +275,7 @@ func ToggleRoomLock(ctx context.Context, dbClient *firestore.Client, id string, 
 	}
 	if roomIndx == -1 {
 		log.Printf("Room %v not present for user: %v", roomId, id)
-		return fmt.Errorf("Room %v not present for user: %v", roomId, id)
+		return NotFound
 	}
 	user.Rooms[roomIndx].IsLocked = !user.Rooms[roomIndx].IsLocked
 	// save the user
@@ -270,13 +289,17 @@ func ToggleRoomLock(ctx context.Context, dbClient *firestore.Client, id string, 
 
 func GetRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (Room, error) {
 	var room Room
+	if roomId == "" {
+		log.Printf("GetRoom: Invalid room id")
+		return room, InvalidRequest
+	}
 	doc, err := CheckRoom(ctx, dbClient, roomId)
 	if err != nil {
-		log.Printf("Error in GetRoom handler: %v", err)
+		log.Printf("GetRoom: Error: %v", err)
 		return room, err
 	}
 	if doc == nil {
-		return room, fmt.Errorf("Room not found: %v", roomId)
+		return room, NotFound
 	}
 	var user User
 	doc.DataTo(&user)
@@ -289,7 +312,7 @@ func GetRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (Ro
 	}
 	if roomIndx == -1 {
 		log.Printf("GetRoom: Room not found: %v", roomId)
-		return room, fmt.Errorf("Room not found: %v", roomId)
+		return room, NotFound
 	}
 	room = user.Rooms[roomIndx]
 	return room, nil
@@ -297,6 +320,10 @@ func GetRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (Ro
 
 func GetUserRoom(ctx context.Context, dbClient *firestore.Client, id string, roomId string) (Room, error) {
 	var room Room
+	if id == "" || roomId == "" {
+		log.Printf("GetUserRoom: Invalid room or user id")
+		return room, InvalidRequest
+	}
 	user, err := GetUser(ctx, dbClient, id)
 	if err != nil {
 		return room, err
@@ -310,7 +337,7 @@ func GetUserRoom(ctx context.Context, dbClient *firestore.Client, id string, roo
 	}
 	if roomIndx == -1 {
 		log.Printf("GetUserRoom: Room: %v not found for user: %v", roomId, user.Id)
-		return room, fmt.Errorf("Room: %v not found for user: %v", roomId, user.Id)
+		return room, NotFound
 	}
 	room = user.Rooms[roomIndx]
 	return room, nil
