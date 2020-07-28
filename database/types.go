@@ -2,7 +2,7 @@ package database
 
 type Room struct {
 	RoomId   string `json:"room_id,omitempty"`
-	IsLocked bool   `json:"is_locked,string,omitempty"`
+	IsLocked bool   `json:"is_locked,omitempty"`
 }
 
 // User is a json-serializable type.
