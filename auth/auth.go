@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 
 	"WebRTCConf/database"
@@ -31,36 +32,50 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 	// First, we need to get the value of the `code` query param
 	var code Token
 	if err := json.NewDecoder(r.Body).Decode(&code); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("Auth: could not parse JSON response: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	// Next, lets for the HTTP request to call the github oauth enpoint
 	// to get our access token
 	var user database.User
+	var err error
 	if code.Service == "github" {
-		user = authGithub(w, r, code.Code)
+		user, err = authGithub(w, r, code.Code)
+		if err != nil {
+			log.Printf("Auth: error authGithub: %v", err)
+			return
+		}
+		log.Printf("Auth: userId 1: %v", user.Id)
 		MyHandler(w, r, user.Id)
 	} else if code.Service == "google" {
-		user = authGoogle(w, r, code.Code)
+		user, err = authGoogle(w, r, code.Code)
+		if err != nil {
+			log.Printf("Auth: error authGoogle: %v", err)
+			return
+		}
 		MyHandler(w, r, user.Id)
 	}
-	err := database.CheckUser(Ctx, Client, user.Id)
+	log.Printf("Auth: userId 2 %v", user.Id)
+	err = database.CheckUser(Ctx, Client, user.Id)
 	if err != nil {
+		log.Printf("Auth: error checkUser: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	log.Printf("Auth: userId 3: %v", user.Id)
 	database.SaveUser(Ctx, Client, user.Id, user)
 }
 
-func authGithub(w http.ResponseWriter, r *http.Request, code string) database.User {
+func authGithub(w http.ResponseWriter, r *http.Request, code string) (database.User, error) {
 	var user database.User
 	httpClient := http.Client{}
 	reqURL := fmt.Sprintf("https://github.com/login/oauth/access_token?client_id=%s&client_secret=%s&code=%s", Env.GithubClientID, Env.GithubClientSecret, code)
 	req, err := http.NewRequest(http.MethodPost, reqURL, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not create HTTP request: %v", err)
+		log.Printf("authGithub: could not create HTTP request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	// We set this header since we want the response
 	// as JSON
@@ -69,44 +84,45 @@ func authGithub(w http.ResponseWriter, r *http.Request, code string) database.Us
 	// Send out the HTTP request
 	res1, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not send HTTP request: %v", err)
+		log.Printf("authGithub: could not send HTTP request: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return user
+		return user, err
 	}
 	defer res1.Body.Close()
 
 	// Parse the request body into the `OAuthAccessResponse` struct
 	var t OAuthAccessResponse
 	if err := json.NewDecoder(res1.Body).Decode(&t); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("authGithub: could not parse JSON response: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	if t.AccessToken == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, errors.New("Nil Access token")
 	}
 	req, err = http.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
 	req.Header.Add("Authorization", "Token "+t.AccessToken)
 	res2, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not send HTTP request: %v", err)
+		log.Printf("authGithub: could not send HTTP request: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return user
+		return user, err
 	}
 	defer res2.Body.Close()
 	var ud GithubUserData
 	if err := json.NewDecoder(res2.Body).Decode(&ud); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("authGithub: could not parse JSON response: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	user.Id = strconv.Itoa(ud.ID)
 	user.Name = ud.Name
-	return user
+	log.Printf("authGithub: User: %v", user)
+	return user, nil
 }
 
-func authGoogle(w http.ResponseWriter, r *http.Request, code string) database.User {
+func authGoogle(w http.ResponseWriter, r *http.Request, code string) (database.User, error) {
 	var user database.User
 	httpClient := http.Client{}
 	reqURL := "https://oauth2.googleapis.com/token"
@@ -119,9 +135,9 @@ func authGoogle(w http.ResponseWriter, r *http.Request, code string) database.Us
 	req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewBufferString(data.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not create HTTP request: %v", err)
+		log.Printf("authGoogle: could not create HTTP request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	// We set this header since we want the response
 	// as JSON
@@ -130,38 +146,38 @@ func authGoogle(w http.ResponseWriter, r *http.Request, code string) database.Us
 	// Send out the HTTP request
 	res1, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not send HTTP request: %v", err)
+		log.Printf("authGoogle: could not send HTTP request: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return user
+		return user, err
 	}
 	defer res1.Body.Close()
 	// Parse the request body into the `OAuthAccessResponse` struct
 	var t OAuthAccessResponse
 	if err := json.NewDecoder(res1.Body).Decode(&t); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("authGoogle: could not parse JSON response: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	if t.AccessToken == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, errors.New("Nil Acess token")
 	}
 	req, err = http.NewRequest(http.MethodGet, "https://people.googleapis.com/v1/people/me?personFields=emailAddresses,names,metadata", nil)
 	req.Header.Add("Authorization", "Bearer "+t.AccessToken)
 	res2, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "could not send HTTP request: %v", err)
+		log.Printf("authGoogle: could not send HTTP request: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return user
+		return user, err
 	}
 	defer res2.Body.Close()
 	var ud GoogleUserData
 	if err := json.NewDecoder(res2.Body).Decode(&ud); err != nil {
-		fmt.Fprintf(os.Stdout, "could not parse JSON response: %v", err)
+		log.Printf("authGoogle: could not parse JSON response: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return user
+		return user, err
 	}
 	user.Id = ud.MetaData.Sources[0].ID
 	user.Name = ud.Names[0].DisplayName
-	return user
+	return user, nil
 }
