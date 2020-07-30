@@ -142,13 +142,13 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	var roomId string
-	if err := json.NewDecoder(r.Body).Decode(&roomId); err != nil {
+	var room database.Room
+	if err := json.NewDecoder(r.Body).Decode(&room); err != nil {
 		log.Printf("Could not parse JSON response in ToggleRoomLock: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := database.ToggleRoomLock(Ctx, Client, id, roomId)
+	err := database.ToggleRoomLock(Ctx, Client, id, room.RoomId)
 	if err != nil {
 		if err == database.InvalidRequest {
 			w.WriteHeader(http.StatusBadRequest)
