@@ -6,12 +6,13 @@ import (
 
 // Message type for incoming messages from the client
 type Message struct {
-	Action string      `json:"action,omitempty"`
-	UserId string      `json:"id,omitempty"`
-	Data   interface{} `json:"data,omitempty"`
-	Type   string      `json:"type,omitempty"`
-	To     string      `json:"to,omitempty"`
-	From   string      `json:"from,omitempty"`
+	Action      string      `json:"action,omitempty"`
+	UserId      string      `json:"id,omitempty"`
+	Data        interface{} `json:"data,omitempty"`
+	Type        string      `json:"type,omitempty"`
+	To          string      `json:"to,omitempty"`
+	From        string      `json:"from,omitempty"`
+	DisplayName string      `json:"display_name,omitempty"`
 }
 
 // Message type for internal usage only
@@ -35,10 +36,10 @@ type User struct {
 }
 
 type Room struct {
-	roomId   string
-	isLocked bool
-	owner    *Connection
-	users    map[*Connection]bool
+	roomId    string
+	isLocked  bool
+	owner     *Connection
+	users     map[*Connection]bool
 	waitUsers map[string]*Connection
 }
 
