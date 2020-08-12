@@ -43,26 +43,41 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 	if code.Service == "github" {
 		user, err = authGithub(w, r, code.Code)
 		if err != nil {
-			log.Printf("Auth: error authGithub: %v", err)
+			// log.Printf("Auth: error authGithub: %v", err)
 			return
 		}
-		log.Printf("Auth: userId 1: %v", user.Id)
+		// log.Printf("Auth: userId 1: %v", user.Id)
 		MyHandler(w, r, user.Id)
 	} else if code.Service == "google" {
 		user, err = authGoogle(w, r, code.Code)
 		if err != nil {
-			log.Printf("Auth: error authGoogle: %v", err)
+			// log.Printf("Auth: error authGoogle: %v", err)
 			return
 		}
 		MyHandler(w, r, user.Id)
 	}
-	log.Printf("Auth: userId 2 %v", user.Id)
-	err = database.CheckUser(Ctx, Client, user.Id)
+	// log.Printf("Auth: userId 2 %v", user.Id)
+	user1, err := database.GetUser(Ctx, Client, user.Id)
 	if err != nil {
 		if err == database.NotFound {
 			log.Printf("Auth: userId 3: %v", user.Id)
-			database.SaveUser(Ctx, Client, user.Id, user)
-			w.WriteHeader(http.StatusCreated)
+			err = database.SaveUser(Ctx, Client, user.Id, user)
+			if err == database.InvalidRequest {
+				w.WriteHeader(http.StatusBadRequest)
+			} else if err != nil {
+				log.Printf("Auth: error SaveUser: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				js, err := json.Marshal(user)
+				if err != nil {
+					log.Printf("Auth: Marshalling Error in Auth: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusCreated)
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(js)
+			}
 		} else if err == database.InvalidRequest {
 			log.Printf("Auth: error checkUser: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -70,6 +85,17 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Auth: error checkUser: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+		return
+	} else {
+		js, err := json.Marshal(user1)
+		if err != nil {
+			log.Printf("Auth: Marshalling Error in Auth: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 		return
 	}
 }
