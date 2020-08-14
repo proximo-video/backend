@@ -125,8 +125,10 @@ func (r *RoomManager) HandleChannels() {
 					}
 					room := r.rooms[user.roomId]
 					if room.isLocked { // room is Locked
-						// put user in waitUsers queue: only if its not already present
-						if _, ok := room.waitUsers[user.connection.userId]; !ok {
+						_, ok := room.waitUsers[user.connection.userId]
+						_, ok1 := room.users[user.connection]
+						// put user in waitUsers queue: only if its not already present in waitUsers and users
+						if !ok && !ok1 {
 							room.waitUsers[user.connection.userId] = user.connection
 							
 							// if owner of the room is present then send PERMIT request
