@@ -66,7 +66,7 @@ func (r *RoomManager) HandleChannels() {
 						r.rooms[user.roomId] = room
 						log.Printf("Registered Owner: %v and Created room: %v", user.connection.userId, user.roomId)
 					} else {
-							// check if user already exists: don't renter user
+							// check if user already exists: don't re-enter user
 						if _, ok := room.users[user.connection]; !ok {
 							room.users[user.connection] = true
 							room.owner = user.connection
@@ -105,6 +105,8 @@ func (r *RoomManager) HandleChannels() {
 									room.owner.send <- marshalled
 								}
 							}
+						} else {
+							log.Printf("1: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
 				}
@@ -155,6 +157,8 @@ func (r *RoomManager) HandleChannels() {
 							} else {
 								log.Printf("Register: Marshalling Error in sending WAIT action: %v", err)
 							}
+						} else {
+							log.Printf("2: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					} else { // room is not Locked
 						if _, ok := room.users[user.connection]; !ok {
@@ -178,6 +182,8 @@ func (r *RoomManager) HandleChannels() {
 									uc.send <- marshalled
 								}
 							}
+						} else {
+							log.Printf("3: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
 				}
