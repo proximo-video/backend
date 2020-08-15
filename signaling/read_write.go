@@ -63,7 +63,7 @@ func (connection *Connection) readMessage() {
 			// only owner of a room can start a meeting
 			user.isOwner = false
 			RManager.register <- user
-			log.Printf("Join from user: %v", msg.UserId)
+			log.Printf("Join from user: %v for room %v", msg.UserId, user.roomId)
 		case END:
 			// handle deregistration
 			// only applicable when the requester is the owner of the room
