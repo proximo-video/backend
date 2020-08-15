@@ -112,11 +112,13 @@ func (r *RoomManager) HandleChannels() {
 				}
 			} else {
 				dbRoom, err := database.GetRoom(auth.Ctx, auth.Client, user.roomId)
+				log.Printf("got dbRoom: %v",dbRoom)
 				if err != nil {
 					log.Printf("Register: user: %v, Error in GetRoom: %v", user.connection.userId, err)
 					user.connection.SendError(err)
 				} else {
 					if room, ok := r.rooms[user.roomId]; !ok {
+						log.Printf("Create new room %v in server from user: %v", user.roomId, user.connection.userId)
 						room = &Room{ // create new room
 							roomId:    user.roomId,
 							isLocked:  dbRoom.IsLocked,
@@ -161,7 +163,9 @@ func (r *RoomManager) HandleChannels() {
 							log.Printf("2: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					} else { // room is not Locked
+						log.Printf("Room is not locked: %v", room.roomId)
 						if _, ok := room.users[user.connection]; !ok {
+							log.Printf("registered new user in room: %v", user.connection.userId)
 							room.users[user.connection] = true
 							// send ready to all users
 							for uc := range room.users {
@@ -177,7 +181,7 @@ func (r *RoomManager) HandleChannels() {
 								// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 								// don't send message to sender again
 								if uc.ws != user.connection.ws {
-									log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
+									log.Printf("Sending ready to user %v from user %v", uc.userId, user.connection.userId)
 									// send to the user channel
 									uc.send <- marshalled
 								}
