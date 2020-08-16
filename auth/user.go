@@ -129,6 +129,16 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if doc != nil {
+		var returnRoom database.Room
+		doc.DataTo(&returnRoom)
+		js, err := json.Marshal(returnRoom)
+		if err != nil {
+			log.Printf("Marshalling Error in CheckRoom: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
