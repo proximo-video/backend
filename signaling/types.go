@@ -27,6 +27,7 @@ type Connection struct {
 	ws     *websocket.Conn
 	userId string
 	send   chan []byte
+	displayName string
 }
 
 type User struct {

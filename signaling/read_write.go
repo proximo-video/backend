@@ -52,6 +52,7 @@ func (connection *Connection) readMessage() {
 			user.roomId = msg.Data.(string)
 			// only owner of a room can start a meeting
 			user.isOwner = true
+			user.connection.displayName = msg.DisplayName
 			RManager.register <- user
 			log.Printf("Start from user: %v", msg.UserId)
 			// handle one more thing sending the reply back
@@ -62,6 +63,7 @@ func (connection *Connection) readMessage() {
 			user.roomId = msg.Data.(string)
 			// only owner of a room can start a meeting
 			user.isOwner = false
+			user.connection.displayName = msg.DisplayName
 			RManager.register <- user
 			log.Printf("Join from user: %v for room %v", msg.UserId, user.roomId)
 		case END:
@@ -104,7 +106,7 @@ func (connection *Connection) readMessage() {
 			}
 		}
 	}
-	log.Printf("For loop break")
+	// log.Printf("For loop break")
 }
 
 // write writes a message with the given message type and payload.
