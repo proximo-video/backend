@@ -10,13 +10,13 @@ import (
 
 const (
 	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
+	writeWait = 20 * time.Second
 
 	// Time allowed to read the next message from the peer.
 	readWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than readWait(pongWait).
-	pingPeriod = (readWait * 9) / 10
+	pingPeriod = 10 * time.Second
 )
 
 // readMessage will constantly read message from the websocket connection
