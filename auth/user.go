@@ -118,31 +118,27 @@ func CheckRoom(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	doc, err := database.CheckRoom(Ctx, Client, room.RoomId)
+	room, err := database.GetRoom(Ctx, Client, room.RoomId)
 	if err != nil {
 		if err == database.InvalidRequest {
 			w.WriteHeader(http.StatusBadRequest)
+		} else if err == database.NotFound {
+			w.WriteHeader(http.StatusNotFound)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		log.Printf("Error in checkRoom handler: %v", err)
 		return
 	}
-	if doc != nil {
-		var returnRoom database.Room
-		doc.DataTo(&returnRoom)
-		js, err := json.Marshal(returnRoom)
-		if err != nil {
-			log.Printf("Marshalling Error in CheckRoom: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(js)
-		w.WriteHeader(http.StatusOK)
+	js, err := json.Marshal(room)
+	log.Printf("room: %v", room)
+	if err != nil {
+		log.Printf("Marshalling Error in CheckRoom: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
 	return
 }
 
@@ -169,7 +165,6 @@ func ToggleRoomLock(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 	return
 }
 
