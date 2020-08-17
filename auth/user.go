@@ -78,6 +78,8 @@ func NewRoom(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else if err == database.RoomPresent {
 			w.WriteHeader(http.StatusConflict)
+		} else if err == database.NotAllowed {
+			w.WriteHeader(http.StatusNotAcceptable)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
