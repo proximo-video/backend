@@ -117,6 +117,10 @@ func AddRoom(ctx context.Context, dbClient *firestore.Client, id string, room Ro
 		// log.Printf("User Doesn't Exists: %v", id)
 		return err
 	}
+	// limit number of rooms
+	if len(user.Rooms) >= 3 {
+		return NotAllowed
+	}
 	// append the new room
 	user.Rooms = append(user.Rooms, room)
 	// update the user
