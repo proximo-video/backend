@@ -68,43 +68,47 @@ func (r *RoomManager) HandleChannels() {
 					} else {
 							// check if user already exists: don't re-enter user
 						if _, ok := room.users[user.connection]; !ok {
-							room.users[user.connection] = true
-							room.owner = user.connection
-							
-							// send ready to all users
-							for uc := range room.users {
-								marshalled, err := json.Marshal(Message{
-									Action: READY,
-									To:     uc.userId,
-									From:   user.connection.userId,
-								})
-								if err != nil {
-									log.Printf("Marshalling Error in Register User: %v", err)
-									continue
-								}
-								// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
-								// don't send message to sender again
-								if uc.ws != user.connection.ws {
-									log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
-									// send to the user channel
-									uc.send <- marshalled
-								}
-							}
-							// if room is locked then send PERMIT request to owner from all waiting Users
-							if dbRoom.IsLocked {
-								for ucId, uc := range room.waitUsers {
+							if len(room.users) < 4 {
+								room.users[user.connection] = true
+								room.owner = user.connection
+								
+								// send ready to all users
+								for uc := range room.users {
 									marshalled, err := json.Marshal(Message{
-										Action: PERMIT,
-										To:     room.owner.userId,
-										From:   ucId,
-										DisplayName: uc.displayName,
+										Action: READY,
+										To:     uc.userId,
+										From:   user.connection.userId,
 									})
 									if err != nil {
-										log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
+										log.Printf("Marshalling Error in Register User: %v", err)
 										continue
 									}
-									room.owner.send <- marshalled
+									// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+									// don't send message to sender again
+									if uc.ws != user.connection.ws {
+										log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
+										// send to the user channel
+										uc.send <- marshalled
+									}
 								}
+								// if room is locked then send PERMIT request to owner from all waiting Users
+								if dbRoom.IsLocked {
+									for ucId, uc := range room.waitUsers {
+										marshalled, err := json.Marshal(Message{
+											Action: PERMIT,
+											To:     room.owner.userId,
+											From:   ucId,
+											DisplayName: uc.displayName,
+										})
+										if err != nil {
+											log.Printf("Register: Marshalling Error in sending PERMIT action: %v", err)
+											continue
+										}
+										room.owner.send <- marshalled
+									}
+								}
+							} else {
+								log.Printf("Room is full: cannot allow: %v", user.connection.userId)
 							}
 						} else {
 							log.Printf("1: User: %s already present in room: %s", user.connection.userId, user.roomId)
@@ -167,26 +171,30 @@ func (r *RoomManager) HandleChannels() {
 					} else { // room is not Locked
 						log.Printf("Room is not locked: %v", room.roomId)
 						if _, ok := room.users[user.connection]; !ok {
-							log.Printf("registered new user in room: %v", user.connection.userId)
-							room.users[user.connection] = true
-							// send ready to all users
-							for uc := range room.users {
-								marshalled, err := json.Marshal(Message{
-									Action: READY,
-									To:     uc.userId,
-									From:   user.connection.userId,
-								})
-								if err != nil {
-									log.Printf("Marshalling Error in Register User: %v", err)
-									continue
+							if len(room.users) < 4 {
+								log.Printf("registered new user in room: %v", user.connection.userId)
+								room.users[user.connection] = true
+								// send ready to all users
+								for uc := range room.users {
+									marshalled, err := json.Marshal(Message{
+										Action: READY,
+										To:     uc.userId,
+										From:   user.connection.userId,
+									})
+									if err != nil {
+										log.Printf("Marshalling Error in Register User: %v", err)
+										continue
+									}
+									// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+									// don't send message to sender again
+									if uc.ws != user.connection.ws {
+										log.Printf("Sending ready to user %v from user %v", uc.userId, user.connection.userId)
+										// send to the user channel
+										uc.send <- marshalled
+									}
 								}
-								// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
-								// don't send message to sender again
-								if uc.ws != user.connection.ws {
-									log.Printf("Sending ready to user %v from user %v", uc.userId, user.connection.userId)
-									// send to the user channel
-									uc.send <- marshalled
-								}
+							} else {
+								log.Printf("Room is full: cannot allow: %v", user.connection.userId)
 							}
 						} else {
 							log.Printf("3: User: %s already present in room: %s", user.connection.userId, user.roomId)
@@ -210,9 +218,12 @@ func (r *RoomManager) HandleChannels() {
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
 					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
-						// TODO: Check if there are no more users in waitUsers and users then delete the room
 						close(user.connection.send)
 						delete(room.waitUsers, user.connection.userId)
+						// delete room
+						if len(room.users) == 0 && len(room.waitUsers) == 0 {
+							delete(r.rooms, room.roomId)
+						}
 					} else {
 						log.Printf("User %s not present in room %s", user.connection.userId, user.roomId)
 					}
@@ -243,38 +254,41 @@ func (r *RoomManager) HandleChannels() {
 				if admitMess.action == APPROVE {
 					conn, ok := room.waitUsers[admitMess.userId]
 					if ok {
-						room.users[conn] = true
-						delete(room.waitUsers, admitMess.userId)
-						marshalled, err := json.Marshal(Message{
-							Action: APPROVE,
-							To:     admitMess.userId,
-							From:   room.owner.userId,
-						});
-						if err != nil {
-							log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
-						} else {
-							conn.send <- marshalled
-							// send ready to all users
-							for uc := range room.users {
-								marshalled, err := json.Marshal(Message{
-									Action: READY,
-									To:     uc.userId,
-									From:   conn.userId,
-								})
-								if err != nil {
-									log.Printf("Admission channel: Marshalling Error: %v", err)
-									continue
-								}
-								// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
-								// don't send message to sender again
-								if uc.ws != conn.ws {
-									log.Printf("Admission channel: Sending message to user %v from user %v", uc.userId, conn.userId)
-									// send to the user channel
-									uc.send <- marshalled
+						if len(room.users) < 4 {
+							room.users[conn] = true
+							delete(room.waitUsers, admitMess.userId)
+							marshalled, err := json.Marshal(Message{
+								Action: APPROVE,
+								To:     admitMess.userId,
+								From:   room.owner.userId,
+							});
+							if err != nil {
+								log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
+							} else {
+								conn.send <- marshalled
+								// send ready to all users
+								for uc := range room.users {
+									marshalled, err := json.Marshal(Message{
+										Action: READY,
+										To:     uc.userId,
+										From:   conn.userId,
+									})
+									if err != nil {
+										log.Printf("Admission channel: Marshalling Error: %v", err)
+										continue
+									}
+									// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
+									// don't send message to sender again
+									if uc.ws != conn.ws {
+										log.Printf("Admission channel: Sending message to user %v from user %v", uc.userId, conn.userId)
+										// send to the user channel
+										uc.send <- marshalled
+									}
 								}
 							}
+						} else {
+							log.Printf("Room is full: cannot allow: %v", conn.userId)
 						}
-						// TODO: Send some reply to accepted user.
 					} else {
 						log.Printf("Admission channel: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
 					}
