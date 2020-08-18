@@ -28,6 +28,13 @@ func GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func LogoutSession(w http.ResponseWriter, r *http.Request) {
+	err := LogoutHandler(w, r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func Auth(w http.ResponseWriter, r *http.Request) {
 	// First, we need to get the value of the `code` query param
 	var code Token
@@ -47,14 +54,12 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// log.Printf("Auth: userId 1: %v", user.Id)
-		MyHandler(w, r, user.Id)
 	} else if code.Service == "google" {
 		user, err = authGoogle(w, r, code.Code)
 		if err != nil {
 			// log.Printf("Auth: error authGoogle: %v", err)
 			return
 		}
-		MyHandler(w, r, user.Id)
 	}
 	// log.Printf("Auth: userId 2 %v", user.Id)
 	user1, err := database.GetUser(Ctx, Client, user.Id)
@@ -74,6 +79,7 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
+				MyHandler(w, r, user.Id)
 				w.WriteHeader(http.StatusCreated)
 				w.Header().Set("Content-Type", "application/json")
 				w.Write(js)
@@ -93,6 +99,7 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		MyHandler(w, r, user.Id)
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(js)

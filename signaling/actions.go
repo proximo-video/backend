@@ -52,6 +52,9 @@ const PERMIT string = "PERMIT"
 // action to indicate wait
 const WAIT string = "WAIT"
 
+// action to indicate room is full
+const FULL string = "FULL"
+
 /*----------------------------------------------------------*/
 
 // UNREGISTER ACTIONS

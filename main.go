@@ -45,6 +45,7 @@ func main() {
 	mux.HandleFunc("/toggle", auth.ToggleRoomLock)
 	mux.HandleFunc("/iceserver", auth.IceServer)
 	mux.HandleFunc("/ws", signaling.WebSocketHandler)
+	mux.HandleFunc("/logout", auth.LogoutSession)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:8000", "https://localhost:8000", "https://proximo.netlify.app","https://proximo.pw"},

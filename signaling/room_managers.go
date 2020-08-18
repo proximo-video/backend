@@ -83,7 +83,6 @@ func (r *RoomManager) HandleChannels() {
 										log.Printf("Marshalling Error in Register User: %v", err)
 										continue
 									}
-									// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 									// don't send message to sender again
 									if uc.ws != user.connection.ws {
 										log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
@@ -109,6 +108,15 @@ func (r *RoomManager) HandleChannels() {
 								}
 							} else {
 								log.Printf("Room is full: cannot allow: %v", user.connection.userId)
+								marshalled, err := json.Marshal(Message{
+									Action: FULL,
+									To:     user.connection.userId,
+								})
+								if err != nil {
+									log.Printf("Register: Marshalling Error in sending FULL action: %v", err)
+								} else {
+									user.connection.send <- marshalled
+								}
 							}
 						} else {
 							log.Printf("1: User: %s already present in room: %s", user.connection.userId, user.roomId)
@@ -195,6 +203,15 @@ func (r *RoomManager) HandleChannels() {
 								}
 							} else {
 								log.Printf("Room is full: cannot allow: %v", user.connection.userId)
+								marshalled, err := json.Marshal(Message{
+									Action: FULL,
+									To:     user.connection.userId,
+								})
+								if err != nil {
+									log.Printf("Register: Marshalling Error in sending FULL action: %v", err)
+								} else {
+									user.connection.send <- marshalled
+								}
 							}
 						} else {
 							log.Printf("3: User: %s already present in room: %s", user.connection.userId, user.roomId)
@@ -288,6 +305,15 @@ func (r *RoomManager) HandleChannels() {
 							}
 						} else {
 							log.Printf("Room is full: cannot allow: %v", conn.userId)
+							marshalled, err := json.Marshal(Message{
+								Action: FULL,
+								To:     conn.userId,
+							})
+							if err != nil {
+								log.Printf("Admision: Marshalling Error in sending FULL action: %v", err)
+							} else {
+								conn.send <- marshalled
+							}
 						}
 					} else {
 						log.Printf("Admission channel: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
