@@ -9,6 +9,11 @@ import (
 	"net/http"
 )
 
+func Redirect(w http.ResponseWriter, r *http.Request) {     
+	http.Redirect(w, r, "https://proximo.pw", 301)        
+}
+
+
 func GetUser(w http.ResponseWriter, r *http.Request) {
 	ok, id := CheckHandler(r)
 	if !ok || id == "" {
