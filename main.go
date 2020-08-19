@@ -35,6 +35,7 @@ func init() {
 func main() {
 	go signaling.RManager.HandleChannels()
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", auth.Redirect)
 	mux.HandleFunc("/getSession", auth.GetSession)
 	mux.HandleFunc("/auth", auth.Auth)
 	mux.HandleFunc("/getUser", auth.GetUser)
