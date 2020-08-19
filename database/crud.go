@@ -1,9 +1,11 @@
 package database
 
 import (
+	"strings"
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -244,7 +246,9 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 
 // New Room
 func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Room) error {
-	if id == "" || room.RoomId == "" {
+	room.RoomId = strings.TrimSpace(room.RoomId)
+	var validID = regexp.MustCompile(`^[0-9a-zA-Z]+$`)
+	if id == "" || !validID.MatchString(room.RoomId) {
 		log.Printf("NewRoom: Invalid user or room id")
 		return InvalidRequest
 	}
