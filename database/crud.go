@@ -248,7 +248,7 @@ func CheckRoom(ctx context.Context, dbClient *firestore.Client, roomId string) (
 func NewRoom(ctx context.Context, dbClient *firestore.Client, id string, room Room) error {
 	room.RoomId = strings.TrimSpace(room.RoomId)
 	var validID = regexp.MustCompile(`^[0-9a-zA-Z]+$`)
-	if id == "" || !validID.MatchString(room.RoomId) {
+	if id == "" || !validID.MatchString(room.RoomId) || room.RoomId == "user" || room.RoomId == "privacy-policy" || room.RoomId == "about-us" || room.RoomId == "login" || room.RoomId == "error" {
 		log.Printf("NewRoom: Invalid user or room id")
 		return InvalidRequest
 	}
