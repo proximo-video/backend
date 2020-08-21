@@ -10,13 +10,13 @@ import (
 
 const (
 	// Time allowed to write a message to the peer.
-	writeWait = 20 * time.Second
+	writeWait = 30 * time.Second
 
 	// Time allowed to read the next message from the peer.
 	readWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than readWait(pongWait).
-	pingPeriod = 10 * time.Second
+	pingPeriod = 1 * time.Second
 )
 
 // readMessage will constantly read message from the websocket connection
@@ -54,7 +54,7 @@ func (connection *Connection) readMessage() {
 			user.isOwner = true
 			user.connection.displayName = msg.DisplayName
 			RManager.register <- user
-			log.Printf("Start from user: %v", msg.UserId)
+			// log.Printf("Start from user: %v", msg.UserId)
 			// handle one more thing sending the reply back
 			// reply should be handled after the registration so handle in room_managers
 		case JOIN:
@@ -65,7 +65,7 @@ func (connection *Connection) readMessage() {
 			user.isOwner = false
 			user.connection.displayName = msg.DisplayName
 			RManager.register <- user
-			log.Printf("Join from user: %v for room %v", msg.UserId, user.roomId)
+			// log.Printf("Join from user: %v for room %v", msg.UserId, user.roomId)
 		case END:
 			// handle deregistration
 			// only applicable when the requester is the owner of the room
@@ -76,33 +76,56 @@ func (connection *Connection) readMessage() {
 			} else {
 				log.Printf("User: %s is not the owner of the room: %s so END is not applicable", user.connection.userId, user.roomId)
 				// TODO: send some reply to user
+				user.connection.SendError(NotOwner)
 			}
 		case LEAVE:
 			// just send user to leave
 			RManager.unregister <- Unregister{user: user, action: SELF}
 		case MESSAGE:
-			if user.roomId != "" &&  msg.From != "" && msg.To != "" && msg.From != msg.To{
-				frowardMess := _Message{
-					ws: connection.ws,
-					message: msg,
-					roomId: user.roomId,
+			if _, ok1 := RManager.rooms[user.roomId]; ok1 {
+				if _, ok2 := RManager.rooms[user.roomId].users[user.connection]; ok2 {
+					if user.roomId != "" && msg.From != "" && msg.To != "" && msg.From != msg.To {
+						frowardMess := _Message{
+							ws:      connection.ws,
+							message: msg,
+							roomId:  user.roomId,
+						}
+						RManager.forward <- frowardMess
+						// log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
+					} else {
+						//log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v in MESSAGE", user.roomId, msg.From, msg.To)
+						user.connection.SendError(BadMessage)
+					}
+				} else {
+					user.connection.SendError(UserNotPresent(user.connection.userId, user.roomId))
 				}
-				RManager.forward <- frowardMess
-				// log.Printf("Forward message from user: %v to user: %v", msg.From, msg.To)
 			} else {
-				log.Printf("Invalid RoomId: %v or msg.From: %v or msg.To: %v in MESSAGE", user.roomId, msg.From, msg.To)
+				user.connection.SendError(RoomNotFound(user.roomId))
 			}
 		case APPROVE, REJECT:
-			if user.roomId != "" && msg.To != "" {
-				admitMess := Admit{
-					userId: msg.To,
-					action: msg.Action,
-					roomId: user.roomId,
+			if _, ok1 := RManager.rooms[user.roomId]; ok1 {
+				if RManager.rooms[user.roomId].owner == user.connection {
+					if _, ok2 := RManager.rooms[user.roomId].waitUsers[msg.To]; ok2 {
+						if user.roomId != "" && msg.To != "" {
+							admitMess := Admit{
+								userId: msg.To,
+								action: msg.Action,
+								roomId: user.roomId,
+							}
+							RManager.admission <- admitMess
+							log.Printf("Approve entrance of user: %s by owner: %s for room: %s", msg.To, user.connection.userId, user.roomId)
+						} else {
+							log.Printf("Invalid RoomId: %v or msg.To: %v in APPROVE", user.roomId, msg.To)
+							user.connection.SendError(BadMessage)
+						}
+					} else {
+						user.connection.SendError(UserNotPresent(msg.To, user.roomId))
+					}
+				} else {
+					user.connection.SendError(NotOwner)
 				}
-				RManager.admission <- admitMess
-				log.Printf("Approve entrance of user: %s by owner: %s for room: %s", msg.To, user.connection.userId, user.roomId)
 			} else {
-				log.Printf("Invalid RoomId: %v or msg.To: %v in APPROVE", user.roomId, msg.To)
+				user.connection.SendError(RoomNotFound(user.roomId))
 			}
 		}
 	}
@@ -110,9 +133,9 @@ func (connection *Connection) readMessage() {
 }
 
 // write writes a message with the given message type and payload.
-func (c *Connection) write(mt int, payload []byte) error {
-	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
-	return c.ws.WriteMessage(mt, payload)
+func (connection *Connection) write(mt int, payload []byte) error {
+	connection.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	return connection.ws.WriteMessage(mt, payload)
 }
 
 func (connection *Connection) writeMessage() {
