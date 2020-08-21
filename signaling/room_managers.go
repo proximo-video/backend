@@ -11,10 +11,10 @@ func (c *Connection) SendError(err error) {
 	marshalled, err := json.Marshal(Message{
 		Action: ERROR,
 		UserId: c.userId,
-		Data: err.Error(),
-		To: c.userId,
+		Data:   err.Error(),
+		To:     c.userId,
 	})
-	if err == nil {   
+	if err == nil {
 		c.send <- marshalled
 	} else {
 		log.Printf("SendError: Error in marshaling: %v", err)
@@ -66,7 +66,7 @@ func (r *RoomManager) HandleChannels() {
 							Action: APPROVE,
 							To:     user.connection.userId,
 							From:   "server",
-						});
+						})
 						if err != nil {
 							log.Printf("Register channel: Marshalling Error in APPROVE 1: %v", err)
 						} else {
@@ -83,21 +83,21 @@ func (r *RoomManager) HandleChannels() {
 							log.Printf("Registered Owner: %v and Created room: %v", user.connection.userId, user.roomId)
 						}
 					} else {
-							// check if user already exists: don't re-enter user
+						// check if user already exists: don't re-enter user
 						if _, ok := room.users[user.connection]; !ok {
 							if len(room.users) < 4 {
 								marshalled, err := json.Marshal(Message{
 									Action: APPROVE,
 									To:     user.connection.userId,
 									From:   "server",
-								});
+								})
 								if err != nil {
 									log.Printf("Register channel: Marshalling Error in APPROVE 2: %v", err)
 								} else {
 									user.connection.send <- marshalled
 									room.users[user.connection] = true
 									room.owner = user.connection
-									
+
 									// send ready to all users
 									for uc := range room.users {
 										marshalled, err := json.Marshal(Message{
@@ -120,9 +120,9 @@ func (r *RoomManager) HandleChannels() {
 									if dbRoom.IsLocked {
 										for ucId, uc := range room.waitUsers {
 											marshalled, err := json.Marshal(Message{
-												Action: PERMIT,
-												To:     room.owner.userId,
-												From:   ucId,
+												Action:      PERMIT,
+												To:          room.owner.userId,
+												From:        ucId,
 												DisplayName: uc.displayName,
 											})
 											if err != nil {
@@ -154,7 +154,7 @@ func (r *RoomManager) HandleChannels() {
 				}
 			} else {
 				dbRoom, err := database.GetRoom(auth.Ctx, auth.Client, user.roomId)
-				log.Printf("got dbRoom: %v",dbRoom)
+				log.Printf("got dbRoom: %v", dbRoom)
 				if err != nil {
 					log.Printf("Register: user: %v, Error in GetRoom: %v", user.connection.userId, err)
 					if err == database.NotFound {
@@ -182,13 +182,13 @@ func (r *RoomManager) HandleChannels() {
 						// put user in waitUsers queue: only if its not already present in waitUsers and users
 						if !ok && !ok1 {
 							room.waitUsers[user.connection.userId] = user.connection
-							
+
 							// if owner of the room is present then send PERMIT request
 							if room.owner != nil {
 								marshalled, err := json.Marshal(Message{
-									Action: PERMIT,
-									To:     room.owner.userId,
-									From:   user.connection.userId,
+									Action:      PERMIT,
+									To:          room.owner.userId,
+									From:        user.connection.userId,
 									DisplayName: user.connection.displayName,
 								})
 								if err != nil {
@@ -220,7 +220,7 @@ func (r *RoomManager) HandleChannels() {
 									Action: APPROVE,
 									To:     user.connection.userId,
 									From:   "server",
-								});
+								})
 								if err != nil {
 									log.Printf("Register channel: Marshalling Error in APPROVE 3: %v", err)
 								} else {
@@ -246,7 +246,7 @@ func (r *RoomManager) HandleChannels() {
 											uc.send <- marshalled
 										}
 									}
-								}	
+								}
 							} else {
 								log.Printf("Room is full: cannot allow: %v", user.connection.userId)
 								marshalled, err := json.Marshal(Message{
@@ -326,7 +326,7 @@ func (r *RoomManager) HandleChannels() {
 								Action: APPROVE,
 								To:     admitMess.userId,
 								From:   room.owner.userId,
-							});
+							})
 							if err != nil {
 								log.Printf("Admission channel: Marshalling Error in APPROVE: %v", err)
 							} else {

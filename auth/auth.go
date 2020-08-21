@@ -217,6 +217,7 @@ func authGoogle(w http.ResponseWriter, r *http.Request, code string) (database.U
 		w.WriteHeader(http.StatusBadRequest)
 		return user, err
 	}
+	log.Printf("Ud from google: %v", ud)
 	user.Id = ud.MetaData.Sources[0].ID
 	user.Name = ud.Names[0].DisplayName
 	return user, nil
