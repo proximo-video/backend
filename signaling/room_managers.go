@@ -14,7 +14,7 @@ func (c *Connection) SendError(err error) {
 		Data: err.Error(),
 		To: c.userId,
 	})
-	if err == nil {
+	if err == nil {   
 		c.send <- marshalled
 	} else {
 		log.Printf("SendError: Error in marshaling: %v", err)
@@ -25,19 +25,20 @@ func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	log.Printf("Deleting user: %s from room: %s", connection.userId, room.roomId)
 	// remove user from the room
 	delete(room.users, connection)
+	// close channel
+	close(connection.send)
 	// if user is owner then remove from owner field
 	if connection == room.owner {
 		room.owner = nil
 	}
-	// close channel
-	close(connection.send)
+
 	// if no more users are left then delete the room
 	if len(room.users) == 0 {
 		log.Printf("Deleting room: %v", room.roomId)
 		// Before deleting room close all connections in waitUsers queue also
 		for ucId, uc := range room.waitUsers {
-			close(uc.send)
 			delete(room.waitUsers, ucId)
+			close(uc.send)
 		}
 		delete(r.rooms, room.roomId)
 	}
@@ -51,7 +52,13 @@ func (r *RoomManager) HandleChannels() {
 				dbRoom, err := database.GetUserRoom(auth.Ctx, auth.Client, user.connection.userId, user.roomId)
 				if err != nil {
 					log.Printf("Register: error: %v", err)
-					user.connection.SendError(err)
+					if err == database.NotFound {
+						user.connection.SendError(NotFound)
+					} else if err == database.InvalidRequest {
+						user.connection.SendError(BadMessage)
+					} else {
+						user.connection.SendError(err)
+					}
 				} else {
 					room, ok := r.rooms[user.roomId]
 					if !ok { // case room not found
@@ -139,6 +146,8 @@ func (r *RoomManager) HandleChannels() {
 								}
 							}
 						} else {
+							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
+
 							log.Printf("1: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
@@ -148,7 +157,13 @@ func (r *RoomManager) HandleChannels() {
 				log.Printf("got dbRoom: %v",dbRoom)
 				if err != nil {
 					log.Printf("Register: user: %v, Error in GetRoom: %v", user.connection.userId, err)
-					user.connection.SendError(err)
+					if err == database.NotFound {
+						user.connection.SendError(NotFound)
+					} else if err == database.InvalidRequest {
+						user.connection.SendError(BadMessage)
+					} else {
+						user.connection.SendError(err)
+					}
 				} else {
 					if room, ok := r.rooms[user.roomId]; !ok {
 						log.Printf("Create new room %v in server from user: %v", user.roomId, user.connection.userId)
@@ -194,6 +209,7 @@ func (r *RoomManager) HandleChannels() {
 								log.Printf("Register: Marshalling Error in sending WAIT action: %v", err)
 							}
 						} else {
+							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
 							log.Printf("2: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					} else { // room is not Locked
@@ -244,6 +260,7 @@ func (r *RoomManager) HandleChannels() {
 								}
 							}
 						} else {
+							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
 							log.Printf("3: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
@@ -265,13 +282,14 @@ func (r *RoomManager) HandleChannels() {
 					if _, ok := room.users[user.connection]; ok {
 						r.deleteUser(user.connection, room)
 					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
-						close(user.connection.send)
 						delete(room.waitUsers, user.connection.userId)
+						close(user.connection.send)
 						// delete room
 						if len(room.users) == 0 && len(room.waitUsers) == 0 {
 							delete(r.rooms, room.roomId)
 						}
 					} else {
+						//user.connection.SendError(UserNotPresent(user.connection.userId, user.roomId))
 						log.Printf("User %s not present in room %s", user.connection.userId, user.roomId)
 					}
 				}
@@ -310,7 +328,7 @@ func (r *RoomManager) HandleChannels() {
 								From:   room.owner.userId,
 							});
 							if err != nil {
-								log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
+								log.Printf("Admission channel: Marshalling Error in APPROVE: %v", err)
 							} else {
 								conn.send <- marshalled
 								// send ready to all users
@@ -360,8 +378,12 @@ func (r *RoomManager) HandleChannels() {
 							log.Printf("Admission channel: Marshalling Error in REJECT: %v", err)
 						} else {
 							conn.send <- marshalled
-							close(conn.send)
+							// do not close the socket conn.
 							delete(room.waitUsers, admitMess.userId)
+							// close(conn.send)
+							if len(room.users) == 0 && len(room.waitUsers) == 0 {
+								delete(r.rooms, room.roomId)
+							}
 						}
 					} else {
 						log.Printf("Admission channel REJECT: User: %s not present in waitUsers of room: %s", admitMess.userId, room.roomId)
