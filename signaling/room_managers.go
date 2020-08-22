@@ -282,11 +282,11 @@ func (r *RoomManager) HandleChannels() {
 					}
 				} else {
 					log.Printf("Delete Self User %s in room %s", user.connection.userId, user.roomId)
-					if _, ok := room.users[user.connection.userId]; ok {
-						r.deleteUser(user.connection, room)
-					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
+					if uc, ok := room.users[user.connection.userId]; ok && uc == user.connection {
+						r.deleteUser(uc, room)
+					} else if uc, ok := room.waitUsers[user.connection.userId]; ok && uc == user.connection {
 						delete(room.waitUsers, user.connection.userId)
-						close(user.connection.send)
+						close(uc.send)
 						// delete room
 						if len(room.users) == 0 && len(room.waitUsers) == 0 {
 							delete(r.rooms, room.roomId)
