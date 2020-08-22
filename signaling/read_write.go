@@ -75,7 +75,6 @@ func (connection *Connection) readMessage() {
 				RManager.unregister <- Unregister{user: user, action: ALL}
 			} else {
 				log.Printf("User: %s is not the owner of the room: %s so END is not applicable", user.connection.userId, user.roomId)
-				// TODO: send some reply to user
 				user.connection.SendError(NotOwner)
 			}
 		case LEAVE:
@@ -83,7 +82,7 @@ func (connection *Connection) readMessage() {
 			RManager.unregister <- Unregister{user: user, action: SELF}
 		case MESSAGE:
 			if _, ok1 := RManager.rooms[user.roomId]; ok1 {
-				if _, ok2 := RManager.rooms[user.roomId].users[user.connection]; ok2 {
+				if _, ok2 := RManager.rooms[user.roomId].users[user.connection.userId]; ok2 {
 					if user.roomId != "" && msg.From != "" && msg.To != "" && msg.From != msg.To {
 						frowardMess := _Message{
 							ws:      connection.ws,
@@ -97,10 +96,12 @@ func (connection *Connection) readMessage() {
 						user.connection.SendError(BadMessage)
 					}
 				} else {
-					user.connection.SendError(UserNotPresent(user.connection.userId, user.roomId))
+					log.Printf("MESSAGE: User: %v not present in room: %v:", user.connection.userId, user.roomId)
+					// user.connection.SendError(UserNotPresent(user.connection.userId, user.roomId))
 				}
 			} else {
-				user.connection.SendError(RoomNotFound(user.roomId))
+				log.Printf("MESSAGE: Room: %v not found", user.roomId)
+				// user.connection.SendError(RoomNotFound(user.roomId))
 			}
 		case APPROVE, REJECT:
 			if _, ok1 := RManager.rooms[user.roomId]; ok1 {
@@ -113,7 +114,7 @@ func (connection *Connection) readMessage() {
 								roomId: user.roomId,
 							}
 							RManager.admission <- admitMess
-							log.Printf("Approve entrance of user: %s by owner: %s for room: %s", msg.To, user.connection.userId, user.roomId)
+							log.Printf("Approve or reject entrance of user: %s by owner: %s for room: %s", msg.To, user.connection.userId, user.roomId)
 						} else {
 							log.Printf("Invalid RoomId: %v or msg.To: %v in APPROVE", user.roomId, msg.To)
 							user.connection.SendError(BadMessage)

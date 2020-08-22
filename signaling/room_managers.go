@@ -24,7 +24,7 @@ func (c *Connection) SendError(err error) {
 func (r *RoomManager) deleteUser(connection *Connection, room *Room) {
 	log.Printf("Deleting user: %s from room: %s", connection.userId, room.roomId)
 	// remove user from the room
-	delete(room.users, connection)
+	delete(room.users, connection.userId)
 	// close channel
 	close(connection.send)
 	// if user is owner then remove from owner field
@@ -74,17 +74,17 @@ func (r *RoomManager) HandleChannels() {
 							room = &Room{ // create new room
 								roomId:    user.roomId,
 								isLocked:  dbRoom.IsLocked,
-								users:     make(map[*Connection]bool),
+								users:     make(map[string]*Connection),
 								waitUsers: make(map[string]*Connection),
 							}
-							room.users[user.connection] = true
+							room.users[user.connection.userId] = user.connection
 							room.owner = user.connection
 							r.rooms[user.roomId] = room
 							log.Printf("Registered Owner: %v and Created room: %v", user.connection.userId, user.roomId)
 						}
 					} else {
 						// check if user already exists: don't re-enter user
-						if _, ok := room.users[user.connection]; !ok {
+						if _, ok := room.users[user.connection.userId]; !ok {
 							if len(room.users) < 4 {
 								marshalled, err := json.Marshal(Message{
 									Action: APPROVE,
@@ -95,11 +95,11 @@ func (r *RoomManager) HandleChannels() {
 									log.Printf("Register channel: Marshalling Error in APPROVE 2: %v", err)
 								} else {
 									user.connection.send <- marshalled
-									room.users[user.connection] = true
+									room.users[user.connection.userId] = user.connection
 									room.owner = user.connection
 
 									// send ready to all users
-									for uc := range room.users {
+									for _, uc := range room.users {
 										marshalled, err := json.Marshal(Message{
 											Action: READY,
 											To:     uc.userId,
@@ -110,7 +110,7 @@ func (r *RoomManager) HandleChannels() {
 											continue
 										}
 										// don't send message to sender again
-										if uc.ws != user.connection.ws {
+										if uc.userId != user.connection.userId {
 											log.Printf("Sending message to user %v from user %v", uc.userId, user.connection.userId)
 											// send to the user channel
 											uc.send <- marshalled
@@ -170,7 +170,7 @@ func (r *RoomManager) HandleChannels() {
 						room = &Room{ // create new room
 							roomId:    user.roomId,
 							isLocked:  dbRoom.IsLocked,
-							users:     make(map[*Connection]bool),
+							users:     make(map[string]*Connection),
 							waitUsers: make(map[string]*Connection),
 						}
 						r.rooms[user.roomId] = room
@@ -178,7 +178,7 @@ func (r *RoomManager) HandleChannels() {
 					room := r.rooms[user.roomId]
 					if room.isLocked { // room is Locked
 						_, ok := room.waitUsers[user.connection.userId]
-						_, ok1 := room.users[user.connection]
+						_, ok1 := room.users[user.connection.userId]
 						// put user in waitUsers queue: only if its not already present in waitUsers and users
 						if !ok && !ok1 {
 							room.waitUsers[user.connection.userId] = user.connection
@@ -214,7 +214,8 @@ func (r *RoomManager) HandleChannels() {
 						}
 					} else { // room is not Locked
 						log.Printf("Room is not locked: %v", room.roomId)
-						if _, ok := room.users[user.connection]; !ok {
+						// put user in room only if not already present
+						if _, ok := room.users[user.connection.userId]; !ok {
 							if len(room.users) < 4 {
 								marshalled, err := json.Marshal(Message{
 									Action: APPROVE,
@@ -226,9 +227,9 @@ func (r *RoomManager) HandleChannels() {
 								} else {
 									user.connection.send <- marshalled
 									log.Printf("registered new user in room: %v", user.connection.userId)
-									room.users[user.connection] = true
+									room.users[user.connection.userId] = user.connection
 									// send ready to all users
-									for uc := range room.users {
+									for _, uc := range room.users {
 										marshalled, err := json.Marshal(Message{
 											Action: READY,
 											To:     uc.userId,
@@ -240,7 +241,7 @@ func (r *RoomManager) HandleChannels() {
 										}
 										// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 										// don't send message to sender again
-										if uc.ws != user.connection.ws {
+										if uc.userId != user.connection.userId {
 											log.Printf("Sending ready to user %v from user %v", uc.userId, user.connection.userId)
 											// send to the user channel
 											uc.send <- marshalled
@@ -274,12 +275,12 @@ func (r *RoomManager) HandleChannels() {
 			} else {
 				if unregis.action == ALL {
 					log.Printf("Delete All Users %s in room %s", user.connection.userId, user.roomId)
-					for uc := range room.users {
+					for _, uc := range room.users {
 						r.deleteUser(uc, room)
 					}
 				} else {
 					log.Printf("Delete Self User %s in room %s", user.connection.userId, user.roomId)
-					if _, ok := room.users[user.connection]; ok {
+					if _, ok := room.users[user.connection.userId]; ok {
 						r.deleteUser(user.connection, room)
 					} else if _, ok := room.waitUsers[user.connection.userId]; ok {
 						delete(room.waitUsers, user.connection.userId)
@@ -302,10 +303,10 @@ func (r *RoomManager) HandleChannels() {
 					log.Printf("error in marshalling in forward: %v", err)
 				} else {
 					// loop through all users and forward message to the destination connection only
-					for uc := range room.users {
+					for id, uc := range room.users {
 						// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 						// don't send message to sender again
-						if uc.ws != mess.ws && mess.message.To == uc.userId {
+						if id != mess.message.From && mess.message.To == uc.userId {
 							log.Printf("Sending forward to user %v from user %v", uc.userId, mess.message.From)
 							// send to the user channel
 							uc.send <- marshalled
@@ -320,7 +321,7 @@ func (r *RoomManager) HandleChannels() {
 					conn, ok := room.waitUsers[admitMess.userId]
 					if ok {
 						if len(room.users) < 4 {
-							room.users[conn] = true
+							room.users[conn.userId] = conn
 							delete(room.waitUsers, admitMess.userId)
 							marshalled, err := json.Marshal(Message{
 								Action: APPROVE,
@@ -332,7 +333,7 @@ func (r *RoomManager) HandleChannels() {
 							} else {
 								conn.send <- marshalled
 								// send ready to all users
-								for uc := range room.users {
+								for id, uc := range room.users {
 									marshalled, err := json.Marshal(Message{
 										Action: READY,
 										To:     uc.userId,
@@ -344,7 +345,7 @@ func (r *RoomManager) HandleChannels() {
 									}
 									// log.Printf("Message for conn: %v sender %v", uc.userId, mess.message.UserId)
 									// don't send message to sender again
-									if uc.ws != conn.ws {
+									if id != conn.userId {
 										log.Printf("Admission channel: Sending message to user %v from user %v", uc.userId, conn.userId)
 										// send to the user channel
 										uc.send <- marshalled
