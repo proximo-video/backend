@@ -147,7 +147,7 @@ func (r *RoomManager) HandleChannels() {
 							}
 						} else {
 							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
-
+							close(user.connection.send)
 							log.Printf("1: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
@@ -210,6 +210,7 @@ func (r *RoomManager) HandleChannels() {
 							}
 						} else {
 							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
+							close(user.connection.send)
 							log.Printf("2: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					} else { // room is not Locked
@@ -262,6 +263,7 @@ func (r *RoomManager) HandleChannels() {
 							}
 						} else {
 							user.connection.SendError(UserAlreadyPresent(user.connection.userId, user.roomId))
+							close(user.connection.send)
 							log.Printf("3: User: %s already present in room: %s", user.connection.userId, user.roomId)
 						}
 					}
