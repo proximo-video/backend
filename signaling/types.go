@@ -40,7 +40,7 @@ type Room struct {
 	roomId    string
 	isLocked  bool
 	owner     *Connection
-	users     map[*Connection]bool
+	users     map[string]*Connection
 	waitUsers map[string]*Connection
 }
 
