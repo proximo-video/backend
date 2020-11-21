@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -71,7 +72,7 @@ func GetIdentityFromToken(token string) (*GoogleTokenClaims, error) {
 		return nil, ErrorInvalidToken
 	}
 	claims := parsedToken.Claims.(*GoogleTokenClaims)
-	isValidIssuer := claims.VerifyIssuer("accounts.google.com", true)
+	isValidIssuer := claims.VerifyIssuer("https://accounts.google.com", true)
 	if !isValidIssuer {
 		return nil, ErrorInvalidIssuer
 	}
