@@ -35,32 +35,7 @@ func LogoutSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Auth(w http.ResponseWriter, r *http.Request) {
-	// First, we need to get the value of the `code` query param
-	var code Token
-	if err := json.NewDecoder(r.Body).Decode(&code); err != nil {
-		log.Printf("Auth: could not parse JSON response: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	// Next, lets for the HTTP request to call the github oauth enpoint
-	// to get our access token
-	var user database.User
-	var err error
-	if code.Service == "github" {
-		user, err = authGithub(w, r, code.Code)
-		if err != nil {
-			// log.Printf("Auth: error authGithub: %v", err)
-			return
-		}
-		// log.Printf("Auth: userId 1: %v", user.Id)
-	} else if code.Service == "google" {
-		user, err = authGoogle(w, r, code.Code)
-		if err != nil {
-			// log.Printf("Auth: error authGoogle: %v", err)
-			return
-		}
-	}
+func auth(user database.User, w http.ResponseWriter, r *http.Request) {
 	// log.Printf("Auth: userId 2 %v", user.Id)
 	user1, err := database.GetUser(Ctx, Client, user.Id)
 	if err != nil {
@@ -105,6 +80,55 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 		w.Write(js)
 		return
 	}
+}
+
+func OneTapAuth(w http.ResponseWriter, r *http.Request) {
+	var googleOneTapResponse GoogleOneTapResponse
+	if err := json.NewDecoder(r.Body).Decode(&googleOneTapResponse); err != nil {
+		log.Printf("OneTapAuth: could not parse JSON response: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	claims, err := GetIdentityFromToken(googleOneTapResponse.Credential)
+	if err!=nil {
+		log.Printf("OneTapAuth: Error in verifying JWT: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	var user database.User
+	user.Id = claims.Subject
+	user.Name = claims.Name
+	user.Email = claims.Email
+	auth(user, w, r)
+}
+
+func OAuth(w http.ResponseWriter, r *http.Request) {
+	// First, we need to get the value of the `code` query param
+	var code Token
+	if err := json.NewDecoder(r.Body).Decode(&code); err != nil {
+		log.Printf("OAuth: could not parse JSON response: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// Next, lets for the HTTP request to call the github oauth enpoint
+	// to get our access token
+	var user database.User
+	var err error
+	if code.Service == "github" {
+		user, err = authGithub(w, r, code.Code)
+		if err != nil {
+			// log.Printf("OAuth: error authGithub: %v", err)
+			return
+		}
+		// log.Printf("Auth: userId 1: %v", user.Id)
+	} else if code.Service == "google" {
+		user, err = authGoogle(w, r, code.Code)
+		if err != nil {
+			// log.Printf("OAuth: error authGoogle: %v", err)
+			return
+		}
+	}
+	auth(user, w, r)
 }
 
 func authGithub(w http.ResponseWriter, r *http.Request, code string) (database.User, error) {

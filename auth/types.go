@@ -1,4 +1,6 @@
 package auth
+import "github.com/dgrijalva/jwt-go"
+
 
 //Token - token
 type Token struct {
@@ -70,4 +72,35 @@ type IceResponse struct {
 
 type XirsysPayload struct {
 	Format string `json:"format"`
+}
+
+
+
+//<---------------For One Tap JWT------------------>
+
+
+type GoogleOneTapResponse struct {
+	ClientId string `json:"clientId"`
+	Credential string `json:"credential"`
+}
+
+
+type JSONWebKeys struct {
+	Keys []JSONWebKey `json:"keys"`
+}
+
+type JSONWebKey struct {
+	Kty string `json:"kty"`
+	Kid string `json:"kid"`
+	E   string `json:"e"`
+	Alg string `json:"alg"`
+	Use string `json:"use"`
+	N   string `json:"n"`
+}
+
+type GoogleTokenClaims struct {
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	jwt.StandardClaims
 }
